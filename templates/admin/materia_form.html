@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-book me-2"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.nombre.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-book"></i>
+                                </span>
+                                {{ form.nombre(class="form-control", placeholder="Ej: Introducción a la Programación") }}
+                            </div>
+                            {% if form.nombre.errors %}
+                                {% for error in form.nombre.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.codigo.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-code"></i>
+                                </span>
+                                {{ form.codigo(class="form-control", placeholder="Ej: ISI-101, MAT-201") }}
+                            </div>
+                            {% if form.codigo.errors %}
+                                {% for error in form.codigo.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.cuatrimestre.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-calendar"></i>
+                                    </span>
+                                    {{ form.cuatrimestre(class="form-control") }}
+                                </div>
+                                {% if form.cuatrimestre.errors %}
+                                    {% for error in form.cuatrimestre.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.creditos.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-star"></i>
+                                    </span>
+                                    {{ form.creditos(class="form-control") }}
+                                </div>
+                                {% if form.creditos.errors %}
+                                    {% for error in form.creditos.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.horas_teoricas.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </span>
+                                    {{ form.horas_teoricas(class="form-control") }}
+                                </div>
+                                {% if form.horas_teoricas.errors %}
+                                    {% for error in form.horas_teoricas.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.horas_practicas.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-flask"></i>
+                                    </span>
+                                    {{ form.horas_practicas(class="form-control") }}
+                                </div>
+                                {% if form.horas_practicas.errors %}
+                                    {% for error in form.horas_practicas.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.carrera.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </span>
+                                {{ form.carrera(class="form-select") }}
+                            </div>
+                            {% if form.carrera.errors %}
+                                {% for error in form.carrera.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.descripcion.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-align-left"></i>
+                                </span>
+                                {{ form.descripcion(class="form-control", rows="3", placeholder="Descripción opcional de la materia...") }}
+                            </div>
+                            {% if form.descripcion.errors %}
+                                {% for error in form.descripcion.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gestionar_materias') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                {% if materia %}Actualizar{% else %}Crear{% endif %} Materia
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if materia %}
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información Adicional
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Creación:</strong></p>
+                            <p class="text-muted">{{ materia.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Horas Totales:</strong></p>
+                            <p class="text-muted">
+                                <span class="badge bg-primary">{{ materia.get_horas_totales() }} horas</span>
+                                ({{ materia.horas_teoricas }} teóricas + {{ materia.horas_practicas }} prácticas)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-mayúsculas para el código
+    const codigoInput = document.getElementById('codigo');
+    if (codigoInput) {
+        codigoInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+
+    // Validación en tiempo real
+    const nombreInput = document.getElementById('nombre');
+    if (nombreInput) {
+        nombreInput.addEventListener('input', function() {
+            const valor = this.value.trim();
+            if (valor.length < 3) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else {
+                this.classList.add('is-valid');
+                this.classList.remove('is-invalid');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

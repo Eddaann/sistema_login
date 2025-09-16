@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Profesores - Administración{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-chalkboard-teacher me-2"></i>
+                Gestión de Profesores
+            </h2>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary me-2">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Volver al Dashboard
+                </a>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('agregar_profesor') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>
+                        Agregar Profesor
+                    </a>
+                    <a href="{{ url_for('importar_profesores') }}" class="btn btn-success">
+                        <i class="fas fa-upload me-1"></i>
+                        Importar
+                    </a>
+                    <a href="{{ url_for('gestionar_carreras') }}" class="btn btn-warning">
+                        <i class="fas fa-graduation-cap me-1"></i>
+                        Carreras
+                    </a>
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#exportModal">
+                        <i class="fas fa-file-pdf me-1"></i>
+                        Exportar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas generales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_profesores }}</h4>
+                        <p class="mb-0">Total Profesores</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ profesores_completos }}</h4>
+                        <p class="mb-0">Tiempo Completo</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-tie fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ profesores_asignatura }}</h4>
+                        <p class="mb-0">Por Asignatura</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_carreras }}</h4>
+                        <p class="mb-0">Carreras</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-graduation-cap fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>
+                    Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        {{ filtrar_form.carrera.label(class="form-label") }}
+                        {{ filtrar_form.carrera(class="form-select") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ filtrar_form.tipo_profesor.label(class="form-label") }}
+                        {{ filtrar_form.tipo_profesor(class="form-select") }}
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search me-1"></i>
+                            Filtrar
+                        </button>
+                        <a href="{{ url_for('gestionar_profesores') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>
+                            Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de profesores -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chalkboard-teacher me-2"></i>
+                        Lista de Profesores
+                    </h5>
+                    <span class="badge bg-light text-dark">{{ profesores|length }} profesores</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if profesores %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Carrera</th>
+                                    <th>Teléfono</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha Registro</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for profesor in profesores %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                {{ profesor.nombre[0] }}{{ profesor.apellido[0] }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ profesor.get_nombre_completo() }}</strong>
+                                                <br>
+                                                <small class="text-muted">@{{ profesor.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ profesor.email }}</td>
+                                    <td>
+                                        {% if profesor.carrera %}
+                                            <span class="badge bg-info">{{ profesor.carrera.nombre }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Sin carrera</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ profesor.telefono or 'N/A' }}</td>
+                                    <td>
+                                        {% if profesor.is_profesor_completo() %}
+                                            <span class="badge bg-success">Tiempo Completo</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Por Asignatura</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ profesor.fecha_registro.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {% if profesor.activo %}
+                                            <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#verProfesorModal{{ profesor.id }}"
+                                                    title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if profesor.activo %}
+                                                <button class="btn btn-sm btn-outline-warning toggle-estado-btn" 
+                                                        data-profesor-id="{{ profesor.id }}"
+                                                        data-accion="desactivar"
+                                                        title="Desactivar">
+                                                    <i class="fas fa-user-slash"></i>
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-outline-success toggle-estado-btn" 
+                                                        data-profesor-id="{{ profesor.id }}"
+                                                        data-accion="activar"
+                                                        title="Activar">
+                                                    <i class="fas fa-user-check"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Modal para ver detalles del profesor -->
+                                <div class="modal fade" id="verProfesorModal{{ profesor.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Detalles del Profesor</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <table class="table table-borderless">
+                                                    <tr>
+                                                        <td><strong>Nombre:</strong></td>
+                                                        <td>{{ profesor.get_nombre_completo() }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Usuario:</strong></td>
+                                                        <td>{{ profesor.username }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Email:</strong></td>
+                                                        <td>{{ profesor.email }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Teléfono:</strong></td>
+                                                        <td>{{ profesor.telefono or 'No especificado' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Carrera:</strong></td>
+                                                        <td>{{ profesor.get_carrera_nombre() }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Tipo:</strong></td>
+                                                        <td>{{ profesor.get_rol_display() }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Fecha Registro:</strong></td>
+                                                        <td>{{ profesor.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-user-times fa-3x mb-3"></i>
+                        <p>No hay profesores registrados</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para exportar PDF -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="GET" action="{{ url_for('exportar_profesores') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Exportar Profesores a PDF</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ exportar_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ exportar_form.carrera.label(class="form-label") }}
+                        {{ exportar_form.carrera(class="form-select") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ exportar_form.incluir_contacto.label(class="form-label") }}
+                        {{ exportar_form.incluir_contacto(class="form-select") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    {{ exportar_form.submit(class="btn btn-info") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CSS adicional -->
+<style>
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Manejar cambios de estado usando event delegation
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.toggle-estado-btn')) {
+            const button = e.target.closest('.toggle-estado-btn');
+            const profesorId = button.dataset.profesorId;
+            const accion = button.dataset.accion;
+            toggleEstadoProfesor(profesorId, accion);
+        }
+    });
+});
+
+function toggleEstadoProfesor(profesorId, accion) {
+    const mensaje = accion === 'activar' ? 
+        '¿Está seguro de activar este profesor?' : 
+        '¿Está seguro de desactivar este profesor?';
+    
+    if (confirm(mensaje)) {
+        fetch(`/admin/profesores/${profesorId}/toggle-estado`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                location.reload();
+            } else if (data.error) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Información de cuenta -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-user-circle me-2"></i>
+                            Información de Cuenta
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    {{ form.username(class="form-control", placeholder="Ej: jgarcia") }}
+                                </div>
+                                {% if form.username.errors %}
+                                    {% for error in form.username.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-envelope"></i>
+                                    </span>
+                                    {{ form.email(class="form-control", placeholder="Ej: profesor@universidad.edu") }}
+                                </div>
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if not usuario %}
+                        <!-- Contraseña (solo para nuevos usuarios) -->
+                        <h5 class="mb-3 text-success">
+                            <i class="fas fa-lock me-2"></i>
+                            Contraseña
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-key"></i>
+                                    </span>
+                                    {{ form.password(class="form-control", placeholder="Mínimo 6 caracteres") }}
+                                </div>
+                                {% if form.password.errors %}
+                                    {% for error in form.password.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.password2.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-key"></i>
+                                    </span>
+                                    {{ form.password2(class="form-control", placeholder="Repita la contraseña") }}
+                                </div>
+                                {% if form.password2.errors %}
+                                    {% for error in form.password2.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Información Personal -->
+                        <h5 class="mb-3 text-info">
+                            <i class="fas fa-id-card me-2"></i>
+                            Información Personal
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.nombre.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-signature"></i>
+                                    </span>
+                                    {{ form.nombre(class="form-control", placeholder="Ej: Juan Carlos") }}
+                                </div>
+                                {% if form.nombre.errors %}
+                                    {% for error in form.nombre.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.apellido.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-signature"></i>
+                                    </span>
+                                    {{ form.apellido(class="form-control", placeholder="Ej: García López") }}
+                                </div>
+                                {% if form.apellido.errors %}
+                                    {% for error in form.apellido.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.telefono.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-phone"></i>
+                                </span>
+                                {{ form.telefono(class="form-control", placeholder="Ej: +52 55 1234 5678") }}
+                            </div>
+                            {% if form.telefono.errors %}
+                                {% for error in form.telefono.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Rol y Carrera -->
+                        <h5 class="mb-3 text-warning">
+                            <i class="fas fa-user-tag me-2"></i>
+                            Rol y Asignación
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.rol.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user-tag"></i>
+                                    </span>
+                                    {{ form.rol(class="form-select") }}
+                                </div>
+                                {% if form.rol.errors %}
+                                    {% for error in form.rol.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.carrera.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </span>
+                                    {{ form.carrera(class="form-select") }}
+                                </div>
+                                {% if form.carrera.errors %}
+                                    {% for error in form.carrera.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                                <div class="form-text">
+                                    Obligatorio para profesores
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estado del usuario -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.activo(class="form-check-input") }}
+                                {{ form.activo.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-text">
+                                Los usuarios inactivos no pueden iniciar sesión
+                            </div>
+                        </div>
+
+                        <!-- Información adicional (solo para edición) -->
+                        {% if usuario %}
+                        <div class="card bg-light mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Información del Usuario
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Fecha de Registro:</strong></p>
+                                        <p class="text-muted">{{ usuario.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Último Acceso:</strong></p>
+                                        <p class="text-muted">No disponible</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gestionar_usuarios') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para mostrar/ocultar campo de carrera basado en el rol
+    function toggleCarreraField() {
+        const rolSelect = document.getElementById('rol');
+        const carreraGroup = document.getElementById('carrera').closest('.mb-3');
+
+        if (rolSelect && carreraGroup) {
+            const selectedRol = rolSelect.value;
+            if (selectedRol === 'profesor_completo' || selectedRol === 'profesor_asignatura') {
+                carreraGroup.style.display = 'block';
+                // Hacer el campo requerido
+                document.getElementById('carrera').setAttribute('required', 'required');
+            } else {
+                carreraGroup.style.display = 'none';
+                // Quitar el atributo requerido
+                document.getElementById('carrera').removeAttribute('required');
+            }
+        }
+    }
+
+    // Event listener para cambios en el rol
+    const rolSelect = document.getElementById('rol');
+    if (rolSelect) {
+        rolSelect.addEventListener('change', toggleCarreraField);
+        // Ejecutar al cargar la página
+        toggleCarreraField();
+    }
+
+    // Auto-mayúsculas para el nombre de usuario
+    const usernameInput = document.getElementById('username');
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function() {
+            this.value = this.value.toLowerCase();
+        });
+    }
+});
+</script>
+{% endblock %}

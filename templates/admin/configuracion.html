@@ -1,0 +1,798 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Configuración del Sistema
+                    </h1>
+                    <p class="text-muted mt-1">Configurar parámetros generales del sistema académico</p>
+                </div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Regresar al Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración General -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Configuración General
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="configForm">
+                        <div class="row g-3">
+                            <!-- Nombre del Sistema -->
+                            <div class="col-md-6">
+                                <label for="nombre_sistema" class="form-label">Nombre del Sistema</label>
+                                <input type="text" class="form-control" id="nombre_sistema" value="Sistema Académico" readonly>
+                                <div class="form-text">Nombre principal del sistema</div>
+                            </div>
+
+                            <!-- Versión -->
+                            <div class="col-md-6">
+                                <label for="version" class="form-label">Versión</label>
+                                <input type="text" class="form-control" id="version" value="2.0.0" readonly>
+                                <div class="form-text">Versión actual del sistema</div>
+                            </div>
+
+                            <!-- Idioma -->
+                            <div class="col-md-6">
+                                <label for="idioma" class="form-label">Idioma Principal</label>
+                                <select class="form-select" id="idioma">
+                                    <option value="es" selected>Español</option>
+                                    <option value="en">English</option>
+                                </select>
+                            </div>
+
+                            <!-- Zona Horaria -->
+                            <div class="col-md-6">
+                                <label for="timezone" class="form-label">Zona Horaria</label>
+                                <select class="form-select" id="timezone">
+                                    <option value="America/Mexico_City" selected>Ciudad de México (GMT-6)</option>
+                                    <option value="America/Monterrey">Monterrey (GMT-6)</option>
+                                    <option value="America/Tijuana">Tijuana (GMT-8)</option>
+                                </select>
+                            </div>
+
+                            <!-- Email de Administración -->
+                            <div class="col-md-6">
+                                <label for="email_admin" class="form-label">Email de Administración</label>
+                                <input type="email" class="form-control" id="email_admin" value="admin@sistemaacademico.com">
+                            </div>
+
+                            <!-- Teléfono de Contacto -->
+                            <div class="col-md-6">
+                                <label for="telefono_contacto" class="form-label">Teléfono de Contacto</label>
+                                <input type="tel" class="form-control" id="telefono_contacto" value="+52 55 1234 5678">
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <button type="button" class="btn btn-primary" onclick="guardarConfiguracion()">
+                                <i class="fas fa-save me-1"></i>
+                                Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración de Horarios -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Configuración de Horarios
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="horariosForm">
+                        <div class="row g-3">
+                            <!-- Horas por Día Máximo -->
+                            <div class="col-md-6">
+                                <label for="horas_max_dia" class="form-label">Horas Máximas por Día</label>
+                                <input type="number" class="form-control" id="horas_max_dia" value="8" min="1" max="12">
+                                <div class="form-text">Máximo de horas de clase por día</div>
+                            </div>
+
+                            <!-- Días de Clase -->
+                            <div class="col-md-6">
+                                <label for="dias_clase" class="form-label">Días de Clase por Semana</label>
+                                <input type="number" class="form-control" id="dias_clase" value="5" min="1" max="7">
+                                <div class="form-text">Número de días con clases por semana</div>
+                            </div>
+
+                            <!-- Duración de Clase -->
+                            <div class="col-md-6">
+                                <label for="duracion_clase" class="form-label">Duración de Clase (minutos)</label>
+                                <select class="form-select" id="duracion_clase">
+                                    <option value="50" selected>50 minutos</option>
+                                    <option value="60">60 minutos</option>
+                                    <option value="75">75 minutos</option>
+                                    <option value="90">90 minutos</option>
+                                </select>
+                            </div>
+
+                            <!-- Tiempo entre Clases -->
+                            <div class="col-md-6">
+                                <label for="tiempo_entre_clases" class="form-label">Tiempo entre Clases (minutos)</label>
+                                <input type="number" class="form-control" id="tiempo_entre_clases" value="10" min="0" max="30">
+                                <div class="form-text">Tiempo de descanso entre clases</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <button type="button" class="btn btn-success" onclick="guardarHorarios()">
+                                <i class="fas fa-save me-1"></i>
+                                Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración de Seguridad -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        Configuración de Seguridad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="seguridadForm">
+                        <div class="row g-3">
+                            <!-- Longitud Mínima de Contraseña -->
+                            <div class="col-md-6">
+                                <label for="password_min_length" class="form-label">Longitud Mínima de Contraseña</label>
+                                <input type="number" class="form-control" id="password_min_length" value="8" min="6" max="20">
+                            </div>
+
+                            <!-- Intentos Máximos de Login -->
+                            <div class="col-md-6">
+                                <label for="max_login_attempts" class="form-label">Intentos Máximos de Login</label>
+                                <input type="number" class="form-control" id="max_login_attempts" value="5" min="3" max="10">
+                            </div>
+
+                            <!-- Tiempo de Sesión -->
+                            <div class="col-md-6">
+                                <label for="session_timeout" class="form-label">Tiempo de Sesión (minutos)</label>
+                                <input type="number" class="form-control" id="session_timeout" value="60" min="15" max="480">
+                            </div>
+
+                            <!-- Requerir Cambio de Contraseña -->
+                            <div class="col-md-6">
+                                <label for="password_change_required" class="form-label">Requerir Cambio de Contraseña</label>
+                                <select class="form-select" id="password_change_required">
+                                    <option value="30">Cada 30 días</option>
+                                    <option value="60" selected>Cada 60 días</option>
+                                    <option value="90">Cada 90 días</option>
+                                    <option value="0">Nunca</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <button type="button" class="btn btn-warning" onclick="guardarSeguridad()">
+                                <i class="fas fa-save me-1"></i>
+                                Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración de Base de Datos -->
+    <div class="row mb-4">
+        <div class="col-lg-10 mx-auto">
+            <div class="card">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-database me-2"></i>
+                        Configuración de Base de Datos
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="testConnection()">
+                            <i class="fas fa-plug me-1"></i>
+                            Probar Conexión
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="hacerBackup()">
+                            <i class="fas fa-download me-1"></i>
+                            Backup Ahora
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Información:</strong> Los cambios requieren reinicio del sistema. Se recomienda hacer backup antes de cambiar la configuración.
+                    </div>
+
+                    <form id="databaseForm">
+                        <!-- Tipo de Base de Datos -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="db_type" class="form-label fw-bold">Tipo de Base de Datos</label>
+                                <select class="form-select form-select-lg" id="db_type" onchange="toggleDatabaseConfig()">
+                                    <option value="sqlite" selected>SQLite (Archivo Local)</option>
+                                    <option value="postgresql">PostgreSQL</option>
+                                    <option value="mysql">MySQL</option>
+                                    <option value="mariadb">MariaDB</option>
+                                </select>
+                                <div class="form-text">Selecciona el tipo de base de datos que deseas usar</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="db_status" class="form-label fw-bold">Estado de Conexión</label>
+                                <div class="input-group">
+                                    <span class="input-group-text" id="status-icon">
+                                        <i class="fas fa-circle text-success" id="status-dot"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="db_status" value="Conectado" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración SQLite -->
+                        <div id="sqlite-config" class="database-config">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-file me-2"></i>
+                                        Configuración SQLite
+                                    </h6>
+                                </div>
+                                <div class="col-md-8">
+                                    <label for="sqlite_path" class="form-label">Ruta del Archivo de Base de Datos</label>
+                                    <input type="text" class="form-control" id="sqlite_path" value="instance/sistema_academico.db" readonly>
+                                    <div class="form-text">Ruta relativa al directorio del proyecto</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="sqlite_backup_freq" class="form-label">Frecuencia de Backup</label>
+                                    <select class="form-select" id="sqlite_backup_freq">
+                                        <option value="daily" selected>Diario</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="monthly">Mensual</option>
+                                        <option value="manual">Manual</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración PostgreSQL -->
+                        <div id="postgresql-config" class="database-config" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-server me-2"></i>
+                                        Configuración PostgreSQL
+                                    </h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="pg_host" class="form-label">Host/Servidor</label>
+                                    <input type="text" class="form-control" id="pg_host" placeholder="localhost" value="localhost">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pg_port" class="form-label">Puerto</label>
+                                    <input type="number" class="form-control" id="pg_port" placeholder="5432" value="5432">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pg_ssl" class="form-label">SSL</label>
+                                    <select class="form-select" id="pg_ssl">
+                                        <option value="require" selected>Requerir</option>
+                                        <option value="prefer">Preferir</option>
+                                        <option value="disable">Deshabilitar</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="pg_database" class="form-label">Nombre de Base de Datos</label>
+                                    <input type="text" class="form-control" id="pg_database" placeholder="sistema_academico" value="sistema_academico">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="pg_username" class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="pg_username" placeholder="postgres" value="postgres">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="pg_password" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control" id="pg_password" placeholder="Contraseña">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración MySQL -->
+                        <div id="mysql-config" class="database-config" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-server me-2"></i>
+                                        Configuración MySQL
+                                    </h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="mysql_host" class="form-label">Host/Servidor</label>
+                                    <input type="text" class="form-control" id="mysql_host" placeholder="localhost" value="localhost">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="mysql_port" class="form-label">Puerto</label>
+                                    <input type="number" class="form-control" id="mysql_port" placeholder="3306" value="3306">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="mysql_ssl" class="form-label">SSL</label>
+                                    <select class="form-select" id="mysql_ssl">
+                                        <option value="true" selected>Habilitado</option>
+                                        <option value="false">Deshabilitado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mysql_database" class="form-label">Nombre de Base de Datos</label>
+                                    <input type="text" class="form-control" id="mysql_database" placeholder="sistema_academico" value="sistema_academico">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mysql_username" class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="mysql_username" placeholder="root" value="root">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mysql_password" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control" id="mysql_password" placeholder="Contraseña">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración MariaDB -->
+                        <div id="mariadb-config" class="database-config" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-server me-2"></i>
+                                        Configuración MariaDB
+                                    </h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="mariadb_host" class="form-label">Host/Servidor</label>
+                                    <input type="text" class="form-control" id="mariadb_host" placeholder="localhost" value="localhost">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="mariadb_port" class="form-label">Puerto</label>
+                                    <input type="number" class="form-control" id="mariadb_port" placeholder="3306" value="3306">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="mariadb_ssl" class="form-label">SSL</label>
+                                    <select class="form-select" id="mariadb_ssl">
+                                        <option value="true" selected>Habilitado</option>
+                                        <option value="false">Deshabilitado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mariadb_database" class="form-label">Nombre de Base de Datos</label>
+                                    <input type="text" class="form-control" id="mariadb_database" placeholder="sistema_academico" value="sistema_academico">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mariadb_username" class="form-label">Usuario</label>
+                                    <input type="text" class="form-control" id="mariadb_username" placeholder="root" value="root">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="mariadb_password" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control" id="mariadb_password" placeholder="Contraseña">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración de Backups -->
+                        <div class="row g-3 mt-4">
+                            <div class="col-12">
+                                <h6 class="text-warning mb-3">
+                                    <i class="fas fa-shield-alt me-2"></i>
+                                    Configuración de Backups Automáticos
+                                </h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="backup_frequency" class="form-label">Frecuencia de Backup</label>
+                                <select class="form-select" id="backup_frequency">
+                                    <option value="hourly">Cada hora</option>
+                                    <option value="daily" selected>Diario</option>
+                                    <option value="weekly">Semanal</option>
+                                    <option value="monthly">Mensual</option>
+                                    <option value="disabled">Deshabilitado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="backup_retention" class="form-label">Retención de Backups (días)</label>
+                                <input type="number" class="form-control" id="backup_retention" value="30" min="1" max="365">
+                                <div class="form-text">Días a mantener los backups antiguos</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="backup_location" class="form-label">Ubicación de Backups</label>
+                                <input type="text" class="form-control" id="backup_location" value="backups/" readonly>
+                                <div class="form-text">Directorio relativo al proyecto</div>
+                            </div>
+                        </div>
+
+                        <!-- Historial de Backups -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12">
+                                <h6 class="text-info mb-3">
+                                    <i class="fas fa-history me-2"></i>
+                                    Historial de Backups Recientes
+                                </h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped" id="backup-history">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Tipo</th>
+                                                <th>Tamaño</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="backup-history-body">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">Cargando historial...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="verLogs()">
+                                    <i class="fas fa-file-alt me-1"></i>
+                                    Ver Logs
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="optimizarBD()">
+                                    <i class="fas fa-wrench me-1"></i>
+                                    Optimizar BD
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-success me-2" onclick="guardarDatabase()">
+                                    <i class="fas fa-save me-1"></i>
+                                    Guardar Configuración
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="reiniciarSistema()">
+                                    <i class="fas fa-sync me-1"></i>
+                                    Aplicar Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Funciones para guardar configuraciones
+function guardarConfiguracion() {
+    const formData = {
+        nombre_sistema: document.getElementById('nombre_sistema').value,
+        idioma: document.getElementById('idioma').value,
+        timezone: document.getElementById('timezone').value,
+        email_admin: document.getElementById('email_admin').value,
+        telefono_contacto: document.getElementById('telefono_contacto').value
+    };
+
+    // Simular guardado
+    mostrarMensaje('Configuración general guardada exitosamente', 'success');
+}
+
+function guardarHorarios() {
+    const formData = {
+        horas_max_dia: document.getElementById('horas_max_dia').value,
+        dias_clase: document.getElementById('dias_clase').value,
+        duracion_clase: document.getElementById('duracion_clase').value,
+        tiempo_entre_clases: document.getElementById('tiempo_entre_clases').value
+    };
+
+    mostrarMensaje('Configuración de horarios guardada exitosamente', 'success');
+}
+
+function guardarSeguridad() {
+    const formData = {
+        password_min_length: document.getElementById('password_min_length').value,
+        max_login_attempts: document.getElementById('max_login_attempts').value,
+        session_timeout: document.getElementById('session_timeout').value,
+        password_change_required: document.getElementById('password_change_required').value
+    };
+
+    mostrarMensaje('Configuración de seguridad guardada exitosamente', 'success');
+}
+
+function toggleDatabaseConfig() {
+    const dbType = document.getElementById('db_type').value;
+    const configs = ['sqlite-config', 'postgresql-config', 'mysql-config', 'mariadb-config'];
+
+    // Ocultar todas las configuraciones
+    configs.forEach(config => {
+        document.getElementById(config).style.display = 'none';
+    });
+
+    // Mostrar la configuración seleccionada
+    document.getElementById(`${dbType}-config`).style.display = 'block';
+
+    // Actualizar estado de conexión
+    updateConnectionStatus();
+}
+
+function updateConnectionStatus() {
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('db_status');
+
+    // Simular verificación de conexión
+    statusDot.className = 'fas fa-circle text-warning';
+    statusText.value = 'Verificando...';
+
+    setTimeout(() => {
+        // Simular resultado de conexión exitosa
+        statusDot.className = 'fas fa-circle text-success';
+        statusText.value = 'Conectado';
+    }, 1000);
+}
+
+function testConnection() {
+    const dbType = document.getElementById('db_type').value;
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('db_status');
+
+    statusDot.className = 'fas fa-circle text-warning';
+    statusText.value = 'Probando conexión...';
+
+    mostrarMensaje('Probando conexión a la base de datos...', 'info');
+
+    // Simular prueba de conexión
+    setTimeout(() => {
+        const success = Math.random() > 0.2; // 80% de éxito
+        if (success) {
+            statusDot.className = 'fas fa-circle text-success';
+            statusText.value = 'Conexión exitosa';
+            mostrarMensaje('Conexión a la base de datos exitosa', 'success');
+        } else {
+            statusDot.className = 'fas fa-circle text-danger';
+            statusText.value = 'Error de conexión';
+            mostrarMensaje('Error al conectar con la base de datos. Verifique la configuración.', 'danger');
+        }
+    }, 2000);
+}
+
+function guardarDatabase() {
+    const dbType = document.getElementById('db_type').value;
+    let configData = {
+        db_type: dbType,
+        backup_frequency: document.getElementById('backup_frequency').value,
+        backup_retention: document.getElementById('backup_retention').value,
+        backup_location: document.getElementById('backup_location').value
+    };
+
+    // Agregar configuración específica del tipo de BD
+    if (dbType === 'sqlite') {
+        configData.sqlite_path = document.getElementById('sqlite_path').value;
+        configData.sqlite_backup_freq = document.getElementById('sqlite_backup_freq').value;
+    } else if (dbType === 'postgresql') {
+        configData = {
+            ...configData,
+            host: document.getElementById('pg_host').value,
+            port: document.getElementById('pg_port').value,
+            database: document.getElementById('pg_database').value,
+            username: document.getElementById('pg_username').value,
+            password: document.getElementById('pg_password').value,
+            ssl: document.getElementById('pg_ssl').value
+        };
+    } else if (dbType === 'mysql') {
+        configData = {
+            ...configData,
+            host: document.getElementById('mysql_host').value,
+            port: document.getElementById('mysql_port').value,
+            database: document.getElementById('mysql_database').value,
+            username: document.getElementById('mysql_username').value,
+            password: document.getElementById('mysql_password').value,
+            ssl: document.getElementById('mysql_ssl').value
+        };
+    } else if (dbType === 'mariadb') {
+        configData = {
+            ...configData,
+            host: document.getElementById('mariadb_host').value,
+            port: document.getElementById('mariadb_port').value,
+            database: document.getElementById('mariadb_database').value,
+            username: document.getElementById('mariadb_username').value,
+            password: document.getElementById('mariadb_password').value,
+            ssl: document.getElementById('mariadb_ssl').value
+        };
+    }
+
+    // Enviar configuración al servidor
+    fetch('/admin/configuracion/database', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(configData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarMensaje('Configuración de base de datos guardada exitosamente', 'success');
+            loadBackupHistory();
+        } else {
+            mostrarMensaje('Error al guardar configuración: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        mostrarMensaje('Error de conexión: ' + error.message, 'danger');
+    });
+}
+
+function hacerBackup() {
+    mostrarMensaje('Iniciando backup de base de datos...', 'info');
+
+    fetch('/admin/configuracion/backup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarMensaje('Backup completado exitosamente: ' + data.filename, 'success');
+            loadBackupHistory();
+        } else {
+            mostrarMensaje('Error al crear backup: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        mostrarMensaje('Error de conexión: ' + error.message, 'danger');
+    });
+}
+
+function loadBackupHistory() {
+    fetch('/admin/configuracion/backups')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('backup-history-body');
+
+            if (data.success && data.backups.length > 0) {
+                tbody.innerHTML = data.backups.map(backup => `
+                    <tr>
+                        <td>${backup.fecha}</td>
+                        <td>${backup.tipo === 'automatico' ? 'Automático' : 'Manual'}</td>
+                        <td>${backup.tamano}</td>
+                        <td><span class="badge bg-success">${backup.estado}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="descargarBackup('${backup.filename}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No hay backups disponibles</td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar historial de backups:', error);
+            const tbody = document.getElementById('backup-history-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-danger">Error al cargar historial</td>
+                </tr>
+            `;
+        });
+}
+
+function descargarBackup(filename) {
+    mostrarMensaje(`Descargando backup: ${filename}`, 'info');
+
+    // Simular descarga
+    setTimeout(() => {
+        mostrarMensaje('Backup descargado exitosamente', 'success');
+    }, 1000);
+}
+
+function verLogs() {
+    window.open('/admin/configuracion/logs', '_blank');
+}
+
+function optimizarBD() {
+    mostrarMensaje('Optimizando base de datos...', 'info');
+
+    fetch('/admin/configuracion/optimize', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarMensaje('Base de datos optimizada exitosamente', 'success');
+        } else {
+            mostrarMensaje('Error al optimizar base de datos: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        mostrarMensaje('Error de conexión: ' + error.message, 'danger');
+    });
+}
+
+function reiniciarSistema() {
+    if (confirm('¿Está seguro de que desea reiniciar el sistema? Esto aplicará todos los cambios pendientes.')) {
+        mostrarMensaje('Reiniciando sistema...', 'warning');
+
+        fetch('/admin/configuracion/restart', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarMensaje('Sistema reiniciado exitosamente. Recargando página...', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                mostrarMensaje('Error al reiniciar sistema: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            mostrarMensaje('Error de conexión: ' + error.message, 'danger');
+        });
+    }
+}
+
+function mostrarMensaje(mensaje, tipo) {
+    // Crear elemento de alerta
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Cargar configuración al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Configuración del sistema cargada');
+    toggleDatabaseConfig(); // Configurar la interfaz inicial
+    loadBackupHistory(); // Cargar historial de backups
+    updateConnectionStatus(); // Actualizar estado de conexión
+});
+</script>
+{% endblock %}

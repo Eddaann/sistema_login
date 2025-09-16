@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Registro - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-plus fa-3x text-success mb-3"></i>
+                    <h3 class="card-title">Crear Cuenta</h3>
+                    <p class="text-muted">Complete los datos para registrarse</p>
+                </div>
+
+                <form method="POST" id="registrationForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.nombre.label(class="form-label") }}
+                            {{ form.nombre(class="form-control") }}
+                            {% if form.nombre.errors %}
+                                {% for error in form.nombre.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.apellido.label(class="form-label") }}
+                            {{ form.apellido(class="form-control") }}
+                            {% if form.apellido.errors %}
+                                {% for error in form.apellido.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            {{ form.username(class="form-control") }}
+                        </div>
+                        {% if form.username.errors %}
+                            {% for error in form.username.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-envelope"></i>
+                            </span>
+                            {{ form.email(class="form-control") }}
+                        </div>
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.telefono.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-phone"></i>
+                            </span>
+                            {{ form.telefono(class="form-control", placeholder="Opcional") }}
+                        </div>
+                        {% if form.telefono.errors %}
+                            {% for error in form.telefono.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.rol.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user-tag"></i>
+                            </span>
+                            {{ form.rol(class="form-select", id="rolSelect") }}
+                        </div>
+                        {% if form.rol.errors %}
+                            {% for error in form.rol.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="tipoProfesorDiv" style="display: none;">
+                        {{ form.tipo_profesor.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </span>
+                            {{ form.tipo_profesor(class="form-select") }}
+                        </div>
+                        {% if form.tipo_profesor.errors %}
+                            {% for error in form.tipo_profesor.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="carreraDiv" style="display: none;">
+                        {{ form.carrera.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-graduation-cap"></i>
+                            </span>
+                            {{ form.carrera(class="form-select") }}
+                        </div>
+                        {% if form.carrera.errors %}
+                            {% for error in form.carrera.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                {{ form.password(class="form-control") }}
+                            </div>
+                            {% if form.password.errors %}
+                                {% for error in form.password.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.password2.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                {{ form.password2(class="form-control") }}
+                            </div>
+                            {% if form.password2.errors %}
+                                {% for error in form.password2.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        {{ form.submit(class="btn btn-success btn-lg") }}
+                    </div>
+                </form>
+
+                <div class="text-center">
+                    <p class="mb-0">¿Ya tienes cuenta? 
+                        <a href="{{ url_for('login') }}" class="text-decoration-none">
+                            Inicia sesión aquí
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rolSelect = document.getElementById('rolSelect');
+    const tipoProfesorDiv = document.getElementById('tipoProfesorDiv');
+    const carreraDiv = document.getElementById('carreraDiv');
+    
+    function toggleTipoProfesor() {
+        if (rolSelect.value === 'profesor') {
+            tipoProfesorDiv.style.display = 'block';
+            carreraDiv.style.display = 'block';
+            document.getElementById('tipo_profesor').required = true;
+            document.getElementById('carrera').required = true;
+        } else {
+            tipoProfesorDiv.style.display = 'none';
+            carreraDiv.style.display = 'none';
+            document.getElementById('tipo_profesor').required = false;
+            document.getElementById('carrera').required = false;
+            document.getElementById('tipo_profesor').value = '';
+            document.getElementById('carrera').value = '';
+        }
+    }
+    
+    // Mostrar/ocultar campos basado en la selección inicial
+    toggleTipoProfesor();
+    
+    // Escuchar cambios en el rol
+    rolSelect.addEventListener('change', toggleTipoProfesor);
+});
+</script>
+{% endblock %}

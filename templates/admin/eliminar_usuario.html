@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Usuario - Administración{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmar Eliminación de Usuario
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-times fa-4x text-danger mb-3"></i>
+                    <h4>¿Eliminar este usuario?</h4>
+                    <p class="text-muted">Esta acción marcará al usuario como inactivo y no podrá acceder al sistema</p>
+                </div>
+
+                <!-- Información del usuario a eliminar -->
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title">Información del Usuario</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td><strong>Usuario:</strong></td>
+                                <td>{{ usuario.username }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nombre:</strong></td>
+                                <td>{{ usuario.get_nombre_completo() }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email:</strong></td>
+                                <td>{{ usuario.email }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Rol:</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if usuario.rol == 'admin' %}danger{% elif usuario.rol == 'jefe_carrera' %}warning{% else %}primary{% endif %}">
+                                        {{ usuario.get_rol_display() }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Carrera:</strong></td>
+                                <td>{{ usuario.get_carrera_nombre() or 'No asignada' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Estado:</strong></td>
+                                <td>
+                                    {% if usuario.activo %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fecha de Registro:</strong></td>
+                                <td>{{ usuario.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Advertencia -->
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Advertencia:</strong> Una vez eliminado, el usuario no podrá acceder al sistema.
+                    Si deseas permitir el acceso nuevamente, deberás reactivarlo desde la lista de usuarios.
+                </div>
+
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.confirmacion.label(class="form-label") }}
+                        {{ form.confirmacion(class="form-control text-center", placeholder="ELIMINAR") }}
+                        {% if form.confirmacion.errors %}
+                            {% for error in form.confirmacion.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                        <div class="form-text">
+                            Escriba exactamente "ELIMINAR" para confirmar la eliminación
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('gestionar_usuarios') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Cancelar
+                        </a>
+                        {{ form.submit(class="btn btn-danger") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

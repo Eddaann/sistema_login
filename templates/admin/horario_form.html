@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if horario %}Editar Horario{% else %}Nuevo Horario{% endif %} - Administración
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-clock fa-3x text-primary mb-3"></i>
+                    <h3 class="card-title">
+                        {% if horario %}
+                            Editar Horario
+                        {% else %}
+                            Nuevo Horario
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">Configure los horarios de la escuela</p>
+                </div>
+
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.nombre.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-tag"></i>
+                            </span>
+                            {{ form.nombre(class="form-control", placeholder="Ej: 1ra Hora, Receso, etc.") }}
+                        </div>
+                        {% if form.nombre.errors %}
+                            {% for error in form.nombre.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.turno.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-sun"></i>
+                            </span>
+                            {{ form.turno(class="form-select") }}
+                        </div>
+                        {% if form.turno.errors %}
+                            {% for error in form.turno.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.hora_inicio.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-play"></i>
+                                </span>
+                                {{ form.hora_inicio(class="form-control") }}
+                            </div>
+                            {% if form.hora_inicio.errors %}
+                                {% for error in form.hora_inicio.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.hora_fin.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-stop"></i>
+                                </span>
+                                {{ form.hora_fin(class="form-control") }}
+                            </div>
+                            {% if form.hora_fin.errors %}
+                                {% for error in form.hora_fin.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.orden.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-sort-numeric-up"></i>
+                            </span>
+                            {{ form.orden(class="form-control", placeholder="1, 2, 3...") }}
+                        </div>
+                        <div class="form-text">
+                            Número que determina el orden de los períodos en el turno
+                        </div>
+                        {% if form.orden.errors %}
+                            {% for error in form.orden.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('gestionar_horarios') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-times me-1"></i>
+                            Cancelar
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Ayuda para configurar horarios -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Ayuda para Configurar Horarios
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Turno Matutino</h6>
+                        <ul class="small">
+                            <li>Generalmente de 7:00 AM a 12:30 PM</li>
+                            <li>Incluye períodos de clase y recesos</li>
+                            <li>Orden: 1, 2, 3, etc.</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Turno Vespertino</h6>
+                        <ul class="small">
+                            <li>Generalmente de 1:00 PM a 6:30 PM</li>
+                            <li>Incluye períodos de clase y recesos</li>
+                            <li>Orden independiente del matutino</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <small>
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>Importante:</strong> Cada turno puede tener su propia numeración de orden (1, 2, 3...).
+                        Asegúrese de que las horas no se traslapen entre períodos del mismo turno.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const horaInicio = document.getElementById('hora_inicio');
+    const horaFin = document.getElementById('hora_fin');
+    const turnoSelect = document.getElementById('turno');
+    
+    // Actualizar icono del turno basado en la selección
+    function updateTurnoIcon() {
+        const turnoIcon = document.querySelector('.input-group-text i');
+        if (turnoSelect.value === 'matutino') {
+            turnoIcon.className = 'fas fa-sun';
+        } else if (turnoSelect.value === 'vespertino') {
+            turnoIcon.className = 'fas fa-moon';
+        } else {
+            turnoIcon.className = 'fas fa-clock';
+        }
+    }
+    
+    turnoSelect.addEventListener('change', updateTurnoIcon);
+    updateTurnoIcon(); // Llamar al cargar la página
+    
+    // Validación básica en tiempo real
+    function validateTimes() {
+        if (horaInicio.value && horaFin.value) {
+            if (horaFin.value <= horaInicio.value) {
+                horaFin.setCustomValidity('La hora de fin debe ser posterior a la hora de inicio');
+            } else {
+                horaFin.setCustomValidity('');
+            }
+        }
+    }
+    
+    horaInicio.addEventListener('change', validateTimes);
+    horaFin.addEventListener('change', validateTimes);
+});
+</script>
+{% endblock %}

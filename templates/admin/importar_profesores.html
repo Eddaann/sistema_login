@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Profesores - Administración{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-upload fa-3x text-success mb-3"></i>
+                    <h3 class="card-title">Importar Profesores</h3>
+                    <p class="text-muted">Suba un archivo CSV o Excel con la información de los profesores</p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-4">
+                        {{ form.archivo.label(class="form-label") }}
+                        {{ form.archivo(class="form-control") }}
+                        {% if form.archivo.errors %}
+                            {% for error in form.archivo.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                        <div class="form-text">
+                            Formatos permitidos: CSV, Excel (.xlsx, .xls). Tamaño máximo: 10MB
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.carrera_defecto.label(class="form-label") }}
+                        {{ form.carrera_defecto(class="form-select") }}
+                        <div class="form-text">
+                            Carrera asignada a profesores que no tengan carrera especificada en el archivo
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a href="{{ url_for('gestionar_profesores') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                        <div>
+                            <a href="{{ url_for('descargar_plantilla_csv_profesores') }}" class="btn btn-outline-info me-2" target="_blank">
+                                <i class="fas fa-download me-1"></i>
+                                Descargar Plantilla
+                            </a>
+                            {{ form.submit(class="btn btn-success") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Información sobre el formato del archivo -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Formato del Archivo
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Columnas Requeridas</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i><code>nombre</code> - Nombre del profesor</li>
+                            <li><i class="fas fa-check text-success me-2"></i><code>apellido</code> - Apellido del profesor</li>
+                            <li><i class="fas fa-check text-success me-2"></i><code>email</code> - Email único</li>
+                            <li><i class="fas fa-check text-success me-2"></i><code>tipo_profesor</code> - Tipo de profesor</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Columnas Opcionales</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-circle text-info me-2"></i><code>telefono</code> - Número de teléfono</li>
+                            <li><i class="fas fa-circle text-info me-2"></i><code>carrera_codigo</code> - Código de carrera</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Valores para tipo_profesor:</h6>
+                    <ul class="mb-0">
+                        <li><code>profesor_completo</code> o <code>tiempo completo</code></li>
+                        <li><code>profesor_asignatura</code> o <code>asignatura</code></li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <h6><i class="fas fa-graduation-cap me-2"></i>Códigos de Carreras Disponibles:</h6>
+                    <div class="row">
+                        {% for carrera in carreras %}
+                            <div class="col-md-6">
+                                <code>{{ carrera.codigo }}</code> - {{ carrera.nombre }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ejemplo de archivo -->
+        <div class="card mt-4">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-file-csv me-2"></i>
+                    Ejemplo de Archivo CSV
+                </h6>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded">
+nombre,apellido,email,telefono,tipo_profesor,carrera_codigo
+Juan,Pérez,juan.perez@universidad.edu,555-1234,profesor_completo,ING-SIS
+María,González,maria.gonzalez@universidad.edu,555-5678,profesor_asignatura,MED
+Carlos,Rodríguez,carlos.rodriguez@universidad.edu,555-9012,tiempo completo,DER
+Ana,López,ana.lopez@universidad.edu,,asignatura,ADM</pre>
+            </div>
+        </div>
+
+        <!-- Notas importantes -->
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Notas Importantes
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-key text-warning me-2"></i>Se generará automáticamente un <strong>username</strong> único basado en nombre.apellido</li>
+                    <li><i class="fas fa-lock text-warning me-2"></i>La contraseña temporal será <strong>"profesor123"</strong> para todos los profesores importados</li>
+                    <li><i class="fas fa-envelope text-warning me-2"></i>Los emails deben ser únicos en el sistema</li>
+                    <li><i class="fas fa-graduation-cap text-warning me-2"></i>Si no se especifica carrera_codigo, se usará la carrera por defecto seleccionada arriba</li>
+                    <li><i class="fas fa-shield-alt text-warning me-2"></i>Los profesores importados estarán activos por defecto</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

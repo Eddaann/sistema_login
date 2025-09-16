@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Horario - Administración{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmar Eliminación
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-trash-alt fa-4x text-danger mb-3"></i>
+                    <h4>¿Eliminar este horario?</h4>
+                    <p class="text-muted">Esta acción no se puede deshacer</p>
+                </div>
+
+                <!-- Información del horario a eliminar -->
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title">Información del Horario</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td><strong>Período:</strong></td>
+                                <td>{{ horario.nombre }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Turno:</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if horario.turno == 'matutino' %}primary{% else %}warning text-dark{% endif %}">
+                                        {% if horario.turno == 'matutino' %}
+                                            <i class="fas fa-sun me-1"></i>Matutino
+                                        {% else %}
+                                            <i class="fas fa-moon me-1"></i>Vespertino
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Horario:</strong></td>
+                                <td>{{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Orden:</strong></td>
+                                <td>{{ horario.orden }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Duración:</strong></td>
+                                <td>{{ horario.get_duracion_minutos() }} minutos</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Advertencia:</strong> Al eliminar este horario, se eliminará permanentemente del sistema.
+                    Asegúrese de que no afecte la programación actual de clases.
+                </div>
+
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="{{ url_for('gestionar_horarios') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Cancelar
+                        </a>
+                        {{ form.submit(class="btn btn-danger") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Generar Horarios Académicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-magic me-2"></i>
+                        Generar Horarios Académicos
+                    </h1>
+                    <p class="text-muted mt-1">Crea horarios automáticamente asignando profesores a materias</p>
+                </div>
+                <a href="{{ url_for('gestionar_horarios_academicos') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Regresar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de Generación -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Configuración de Generación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row g-3">
+                            <!-- Carrera -->
+                            <div class="col-md-6">
+                                <label for="carrera" class="form-label">Carrera <span class="text-danger">*</span></label>
+                                {{ form.carrera(class="form-select") }}
+                                {% if form.carrera.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.carrera.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Cuatrimestre -->
+                            <div class="col-md-6">
+                                <label for="cuatrimestre" class="form-label">Cuatrimestre <span class="text-danger">*</span></label>
+                                {{ form.cuatrimestre(class="form-select") }}
+                                {% if form.cuatrimestre.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.cuatrimestre.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Turno -->
+                            <div class="col-md-6">
+                                <label for="turno" class="form-label">Turno <span class="text-danger">*</span></label>
+                                {{ form.turno(class="form-select") }}
+                                {% if form.turno.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.turno.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Días de la semana -->
+                            <div class="col-md-6">
+                                <label for="dias_semana" class="form-label">Días de la semana <span class="text-danger">*</span></label>
+                                {{ form.dias_semana(class="form-select") }}
+                                {% if form.dias_semana.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.dias_semana.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Período académico -->
+                            <div class="col-md-6">
+                                <label for="periodo_academico" class="form-label">Período Académico <span class="text-danger">*</span></label>
+                                {{ form.periodo_academico(class="form-control") }}
+                                {% if form.periodo_academico.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.periodo_academico.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Ejemplo: 2025-1, 2025-2</div>
+                            </div>
+                        </div>
+
+                        <!-- Días personalizados (se muestra solo si se selecciona "personalizado") -->
+                        <div id="dias-personalizados" class="mt-3" style="display: none;">
+                            <h6 class="mb-3">Seleccionar días específicos:</h6>
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    {{ form.lunes.label(class="form-label") }}
+                                    {{ form.lunes(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.martes.label(class="form-label") }}
+                                    {{ form.martes(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.miercoles.label(class="form-label") }}
+                                    {{ form.miercoles(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.jueves.label(class="form-label") }}
+                                    {{ form.jueves(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.viernes.label(class="form-label") }}
+                                    {{ form.viernes(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.sabado.label(class="form-label") }}
+                                    {{ form.sabado(class="form-select form-select-sm") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información adicional -->
+                        <div class="alert alert-info mt-4">
+                            <h6><i class="fas fa-info-circle me-2"></i>Información del proceso:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Algoritmo:</strong> Google OR-Tools CP-SAT Solver (optimización avanzada)</li>
+                                <li>El sistema asignará automáticamente profesores a las materias disponibles</li>
+                                <li>Se respetarán las restricciones de horario y disponibilidad</li>
+                                <li>Los horarios existentes para este período serán reemplazados</li>
+                                <li>Se optimizará la distribución equitativa de carga horaria</li>
+                                <li>Se resolverán conflictos automáticamente usando programación por restricciones</li>
+                            </ul>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('gestionar_horarios_academicos') }}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-times me-1"></i>
+                                Cancelar
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados de la Generación (si existen) -->
+    {% if resultado %}
+    <div class="row mt-4">
+        <div class="col-lg-10 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Resultados de la Generación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if resultado.exito %}
+                        <div class="alert alert-success">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-check-circle me-2"></i>
+                                ¡Generación Exitosa!
+                            </h6>
+                            <p class="mb-0">{{ resultado.mensaje }}</p>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-danger">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Error en la Generación
+                            </h6>
+                            <p class="mb-0">{{ resultado.mensaje }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if resultado.estadisticas %}
+                    <div class="row g-4 mt-3">
+                        <!-- Estadísticas Generales -->
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-chart-pie me-2"></i>
+                                        Estadísticas Generales
+                                    </h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 mb-0 text-primary">{{ resultado.estadisticas.total_horarios }}</div>
+                                                <small class="text-muted">Horarios Creados</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 mb-0 text-success">{{ resultado.estadisticas.profesores_utilizados }}</div>
+                                                <small class="text-muted">Profesores Asignados</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 mb-0 text-info">{{ resultado.estadisticas.materias_asignadas }}</div>
+                                                <small class="text-muted">Materias Cubiertas</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 mb-0 text-warning">{{ "%.1f"|format(resultado.estadisticas.eficiencia) }}%</div>
+                                                <small class="text-muted">Eficiencia</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detalles del Proceso -->
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-cogs me-2"></i>
+                                        Detalles del Proceso
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>Algoritmo:</strong>
+                                        <span class="badge bg-primary">{{ resultado.algoritmo }}</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Profesores Disponibles:</strong> {{ resultado.estadisticas.profesores_totales }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Materias Totales:</strong> {{ resultado.estadisticas.materias_totales }}
+                                    </div>
+                                    <div class="mb-0">
+                                        <strong>Período Académico:</strong> {{ form.periodo_academico.data or 'No especificado' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones posteriores -->
+                    <div class="d-flex justify-content-center mt-4">
+                        <a href="{{ url_for('gestionar_horarios_academicos') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            Ver Horarios Generados
+                        </a>
+                        <a href="{{ url_for('generar_horarios_academicos') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo me-1"></i>
+                            Generar Nuevamente
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Mostrar/ocultar días personalizados según la selección
+document.getElementById('dias_semana').addEventListener('change', function() {
+    const diasPersonalizados = document.getElementById('dias-personalizados');
+    if (this.value === 'personalizado') {
+        diasPersonalizados.style.display = 'block';
+    } else {
+        diasPersonalizados.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

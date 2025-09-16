@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Horario Académico{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Editar Horario Académico
+                    </h1>
+                    <p class="text-muted mt-1">Modifica la asignación de profesor y horario</p>
+                </div>
+                <a href="{{ url_for('gestionar_horarios_academicos') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Regresar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del horario actual -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información Actual
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Materia:</strong><br>
+                            {{ horario_academico.get_materia_nombre() }}<br>
+                            <small class="text-muted">{{ horario_academico.get_materia_codigo() }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Profesor Actual:</strong><br>
+                            {{ horario_academico.get_profesor_nombre() }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Horario Actual:</strong><br>
+                            {{ horario_academico.get_dia_display() }} {{ horario_academico.get_hora_inicio_str() }} - {{ horario_academico.get_hora_fin_str() }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Aula:</strong><br>
+                            {% if horario_academico.aula %}
+                                {{ horario_academico.aula }}
+                            {% else %}
+                                <span class="text-muted">Sin asignar</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de edición -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Modificar Horario
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row g-3">
+                            <!-- Profesor -->
+                            <div class="col-md-6">
+                                <label for="profesor_id" class="form-label">Profesor <span class="text-danger">*</span></label>
+                                {{ form.profesor_id(class="form-select") }}
+                                {% if form.profesor_id.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.profesor_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Horario -->
+                            <div class="col-md-6">
+                                <label for="horario_id" class="form-label">Horario <span class="text-danger">*</span></label>
+                                {{ form.horario_id(class="form-select") }}
+                                {% if form.horario_id.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.horario_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Día de la semana -->
+                            <div class="col-md-6">
+                                <label for="dia_semana" class="form-label">Día de la semana <span class="text-danger">*</span></label>
+                                {{ form.dia_semana(class="form-select") }}
+                                {% if form.dia_semana.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.dia_semana.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Aula -->
+                            <div class="col-md-6">
+                                <label for="aula" class="form-label">Aula</label>
+                                {{ form.aula(class="form-control") }}
+                                {% if form.aula.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.aula.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Ejemplo: A101, Lab1, Auditorio</div>
+                            </div>
+
+                            <!-- Período académico -->
+                            <div class="col-md-6">
+                                <label for="periodo_academico" class="form-label">Período Académico <span class="text-danger">*</span></label>
+                                {{ form.periodo_academico(class="form-control") }}
+                                {% if form.periodo_academico.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.periodo_academico.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Advertencia -->
+                        <div class="alert alert-warning mt-4">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Advertencia:</strong> Al cambiar el profesor o horario, asegúrate de que no haya conflictos con otros horarios asignados.
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('gestionar_horarios_academicos') }}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-times me-1"></i>
+                                Cancelar
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

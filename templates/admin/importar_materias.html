@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Materias - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-upload me-2"></i>
+                        Importar Materias desde CSV/Excel
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Formato del archivo:</strong> El archivo debe contener las siguientes columnas obligatorias:
+                        <code>nombre</code>, <code>codigo</code>, <code>cuatrimestre</code>.
+                        Las columnas opcionales son: <code>carrera_codigo</code>, <code>creditos</code>, <code>horas_teoricas</code>, <code>horas_practicas</code>, <code>descripcion</code>.
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.archivo.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-file-csv"></i>
+                                </span>
+                                {{ form.archivo(class="form-control") }}
+                            </div>
+                            {% if form.archivo.errors %}
+                                {% for error in form.archivo.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">
+                                Formatos soportados: CSV, Excel (.xlsx, .xls)
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.carrera_defecto.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </span>
+                                {{ form.carrera_defecto(class="form-select") }}
+                            </div>
+                            {% if form.carrera_defecto.errors %}
+                                {% for error in form.carrera_defecto.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">
+                                Si no se especifica una carrera en el archivo, se usará esta como predeterminada.
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gestionar_materias') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-1"></i>
+                                Importar Materias
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Resultados de la importación -->
+            {% if resultado %}
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Resultados de la Importación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ resultado.exitosos|length }}</h3>
+                                <p class="text-muted mb-0">Materias creadas</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-warning">{{ resultado.errores|length }}</h3>
+                                <p class="text-muted mb-0">Errores encontrados</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-info">{{ resultado.total_procesados }}</h3>
+                                <p class="text-muted mb-0">Total procesadas</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if resultado.exitosos %}
+                    <div class="mt-4">
+                        <h6 class="text-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Materias creadas exitosamente:
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Código</th>
+                                        <th>Cuatrimestre</th>
+                                        <th>Carrera</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for materia in resultado.exitosos %}
+                                    <tr>
+                                        <td>{{ materia.nombre }}</td>
+                                        <td><code>{{ materia.codigo }}</code></td>
+                                        <td>{{ materia.cuatrimestre }}</td>
+                                        <td>{{ materia.carrera }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if resultado.errores %}
+                    <div class="mt-4">
+                        <h6 class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Errores encontrados:
+                        </h6>
+                        <ul class="list-group">
+                            {% for error in resultado.errores %}
+                            <li class="list-group-item list-group-item-danger">
+                                {{ error }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ejemplo de formato -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Ejemplo de Formato CSV
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>nombre</th>
+                                    <th>codigo</th>
+                                    <th>cuatrimestre</th>
+                                    <th>carrera_codigo</th>
+                                    <th>creditos</th>
+                                    <th>horas_teoricas</th>
+                                    <th>horas_practicas</th>
+                                    <th>descripcion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Introducción a la Programación</td>
+                                    <td>ISI-101</td>
+                                    <td>1</td>
+                                    <td>ING-SIS</td>
+                                    <td>4</td>
+                                    <td>3</td>
+                                    <td>2</td>
+                                    <td>Fundamentos de programación</td>
+                                </tr>
+                                <tr>
+                                    <td>Matemáticas Discretas</td>
+                                    <td>MAT-101</td>
+                                    <td>1</td>
+                                    <td>ING-SIS</td>
+                                    <td>3</td>
+                                    <td>3</td>
+                                    <td>0</td>
+                                    <td>Lógica y matemáticas básicas</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('descargar_plantilla_csv_materias') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-download me-1"></i>
+                            Descargar Plantilla Completa
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

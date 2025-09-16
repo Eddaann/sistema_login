@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.nombre.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </span>
+                                {{ form.nombre(class="form-control", placeholder="Ej: Ingeniería en Sistemas") }}
+                            </div>
+                            {% if form.nombre.errors %}
+                                {% for error in form.nombre.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.codigo.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-code"></i>
+                                </span>
+                                {{ form.codigo(class="form-control", placeholder="Ej: ISI, IND, MKT") }}
+                            </div>
+                            {% if form.codigo.errors %}
+                                {% for error in form.codigo.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            {{ form.descripcion.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-align-left"></i>
+                                </span>
+                                {{ form.descripcion(class="form-control", rows="3", placeholder="Descripción opcional de la carrera...") }}
+                            </div>
+                            {% if form.descripcion.errors %}
+                                {% for error in form.descripcion.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gestionar_carreras') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                {% if carrera %}Actualizar{% else %}Crear{% endif %} Carrera
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if carrera %}
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información Adicional
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Creación:</strong></p>
+                            <p class="text-muted">{{ carrera.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Profesores Asignados:</strong></p>
+                            <p class="text-muted">
+                                <span class="badge bg-primary">{{ carrera.get_profesores_count() }}</span>
+                                profesores activos
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if carrera.get_profesores_count() > 0 %}
+                    <div class="mt-3">
+                        <p><strong>Distribución por Tipo:</strong></p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-tie text-success me-2"></i>
+                                    <span>Tiempo Completo: </span>
+                                    <span class="badge bg-success ms-2">{{ carrera.get_profesores_completos_count() }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-clock text-warning me-2"></i>
+                                    <span>Por Asignatura: </span>
+                                    <span class="badge bg-warning ms-2">{{ carrera.get_profesores_asignatura_count() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-mayúsculas para el código
+    const codigoInput = document.getElementById('codigo');
+    if (codigoInput) {
+        codigoInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+    
+    // Validación en tiempo real
+    const nombreInput = document.getElementById('nombre');
+    if (nombreInput) {
+        nombreInput.addEventListener('input', function() {
+            const valor = this.value.trim();
+            if (valor.length < 3) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else {
+                this.classList.add('is-valid');
+                this.classList.remove('is-invalid');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

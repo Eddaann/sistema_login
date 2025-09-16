@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Académico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Información de cuenta -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-user-circle me-2"></i>
+                            Información de Cuenta
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    {{ form.username(class="form-control", placeholder="Ej: jgarcia") }}
+                                </div>
+                                {% if form.username.errors %}
+                                    {% for error in form.username.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-envelope"></i>
+                                    </span>
+                                    {{ form.email(class="form-control", placeholder="Ej: profesor@universidad.edu") }}
+                                </div>
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Información personal -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-id-card me-2"></i>
+                            Información Personal
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.nombre.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-signature"></i>
+                                    </span>
+                                    {{ form.nombre(class="form-control", placeholder="Ej: Juan") }}
+                                </div>
+                                {% if form.nombre.errors %}
+                                    {% for error in form.nombre.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.apellido.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-signature"></i>
+                                    </span>
+                                    {{ form.apellido(class="form-control", placeholder="Ej: García") }}
+                                </div>
+                                {% if form.apellido.errors %}
+                                    {% for error in form.apellido.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.telefono.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-phone"></i>
+                                </span>
+                                {{ form.telefono(class="form-control", placeholder="Ej: +54 11 1234-5678") }}
+                            </div>
+                            {% if form.telefono.errors %}
+                                {% for error in form.telefono.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Información académica -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-graduation-cap me-2"></i>
+                            Información Académica
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.tipo_profesor.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </span>
+                                    {{ form.tipo_profesor(class="form-select") }}
+                                </div>
+                                {% if form.tipo_profesor.errors %}
+                                    {% for error in form.tipo_profesor.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.carrera.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-university"></i>
+                                    </span>
+                                    {{ form.carrera(class="form-select") }}
+                                </div>
+                                {% if form.carrera.errors %}
+                                    {% for error in form.carrera.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Disponibilidad Horaria -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-calendar-check me-2"></i>
+                            Disponibilidad Horaria
+                        </h5>
+
+                        <!-- Botones de selección masiva -->
+                        <div class="mb-3">
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="select-matutino">
+                                    <i class="fas fa-sun me-1"></i>
+                                    Todo Matutino
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" id="select-vespertino">
+                                    <i class="fas fa-moon me-1"></i>
+                                    Todo Vespertino
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm" id="select-todo">
+                                    <i class="fas fa-check-square me-1"></i>
+                                    Seleccionar Todo
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="deselect-todo">
+                                    <i class="fas fa-square me-1"></i>
+                                    Deseleccionar Todo
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Selecciona las horas en las que el profesor está disponible
+                            </small>
+                        </div>
+
+                        <!-- Tabla de horarios -->
+                        <div class="table-responsive mb-4">
+                            <table class="table table-bordered table-sm" id="horarios-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center" style="width: 120px;">Horario</th>
+                                        <th class="text-center">Lunes</th>
+                                        <th class="text-center">Martes</th>
+                                        <th class="text-center">Miércoles</th>
+                                        <th class="text-center">Jueves</th>
+                                        <th class="text-center">Viernes</th>
+                                        <th class="text-center">Sábado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in horarios %}
+                                        {% if horario.turno == 'matutino' %}
+                                            <tr class="matutino-row">
+                                                <td class="text-center fw-bold">
+                                                    {{ horario.nombre }}<br>
+                                                    <small class="text-muted">
+                                                        {% if horario.hora_inicio and horario.hora_fin %}
+                                                            {{ horario.hora_inicio.strftime('%H:%M') }} - {{ horario.hora_fin.strftime('%H:%M') }}
+                                                        {% else %}
+                                                            Horario no disponible
+                                                        {% endif %}
+                                                    </small>
+                                                </td>
+                                                {% set dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'] %}
+                                                {% for dia in dias %}
+                                                    <td class="text-center">
+                                                        {% set field_name = 'disp_' + horario.id|string + '_' + dia %}
+                                                        <div class="form-check">
+                                                            <input type="checkbox" 
+                                                                   name="{{ field_name }}" 
+                                                                   value="True"
+                                                                   class="form-check-input disponibilidad-checkbox matutino-checkbox" 
+                                                                   checked>
+                                                        </div>
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% for horario in horarios %}
+                                        {% if horario.turno == 'vespertino' %}
+                                            <tr class="vespertino-row">
+                                                <td class="text-center fw-bold">
+                                                    {{ horario.nombre }}<br>
+                                                    <small class="text-muted">
+                                                        {% if horario.hora_inicio and horario.hora_fin %}
+                                                            {{ horario.hora_inicio.strftime('%H:%M') }} - {{ horario.hora_fin.strftime('%H:%M') }}
+                                                        {% else %}
+                                                            Horario no disponible
+                                                        {% endif %}
+                                                    </small>
+                                                </td>
+                                                {% set dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'] %}
+                                                {% for dia in dias %}
+                                                    <td class="text-center">
+                                                        {% set field_name = 'disp_' + horario.id|string + '_' + dia %}
+                                                        <div class="form-check">
+                                                            <input type="checkbox" 
+                                                                   name="{{ field_name }}" 
+                                                                   value="True"
+                                                                   class="form-check-input disponibilidad-checkbox vespertino-checkbox" 
+                                                                   checked>
+                                                        </div>
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Contraseña -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-lock me-2"></i>
+                            Contraseña
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-key"></i>
+                                    </span>
+                                    {{ form.password(class="form-control", placeholder="Contraseña segura") }}
+                                </div>
+                                {% if form.password.errors %}
+                                    {% for error in form.password.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                {{ form.password2.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-key"></i>
+                                    </span>
+                                    {{ form.password2(class="form-control", placeholder="Repita la contraseña") }}
+                                </div>
+                                {% if form.password2.errors %}
+                                    {% for error in form.password2.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('gestionar_profesores') }}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            {{ form.submit(class="btn btn-success") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script para mejorar UX -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-formatear teléfono
+    const telefonoInput = document.querySelector('input[name="telefono"]');
+    if (telefonoInput) {
+        telefonoInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 10) {
+                value = value.replace(/(\d{2})(\d{4})(\d{4})/, '$1 $2-$3');
+            }
+            e.target.value = value;
+        });
+    }
+
+    // Validación en tiempo real para username
+    const usernameInput = document.querySelector('input[name="username"]');
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function(e) {
+            const value = e.target.value;
+            const regex = /^[a-zA-Z0-9_]+$/;
+            if (!regex.test(value)) {
+                e.target.setCustomValidity('Solo letras, números y guiones bajos');
+            } else {
+                e.target.setCustomValidity('');
+            }
+        });
+    }
+
+    // Funcionalidad de botones de selección masiva para disponibilidad
+    const selectMatutinoBtn = document.getElementById('select-matutino');
+    const selectVespertinoBtn = document.getElementById('select-vespertino');
+    const selectTodoBtn = document.getElementById('select-todo');
+    const deselectTodoBtn = document.getElementById('deselect-todo');
+
+    if (selectMatutinoBtn) {
+        selectMatutinoBtn.addEventListener('click', function() {
+            const matutinoCheckboxes = document.querySelectorAll('.matutino-checkbox');
+            matutinoCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+    }
+
+    if (selectVespertinoBtn) {
+        selectVespertinoBtn.addEventListener('click', function() {
+            const vespertinoCheckboxes = document.querySelectorAll('.vespertino-checkbox');
+            vespertinoCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+    }
+
+    if (selectTodoBtn) {
+        selectTodoBtn.addEventListener('click', function() {
+            const allCheckboxes = document.querySelectorAll('.disponibilidad-checkbox');
+            allCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+    }
+
+    if (deselectTodoBtn) {
+        deselectTodoBtn.addEventListener('click', function() {
+            const allCheckboxes = document.querySelectorAll('.disponibilidad-checkbox');
+            allCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+    }
+
+    // Agregar funcionalidad visual para resaltar filas por turno
+    const matutinoRows = document.querySelectorAll('.matutino-row');
+    const vespertinoRows = document.querySelectorAll('.vespertino-row');
+
+    matutinoRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#fff3cd';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+
+    vespertinoRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#d1ecf1';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+});
+</script>
+{% endblock %}
