@@ -161,7 +161,7 @@
                                     <span class="input-group-text">
                                         <i class="fas fa-user-tag"></i>
                                     </span>
-                                    {{ form.rol(class="form-select") }}
+                                    {{ form.rol(class="form-select", id="rolSelect") }}
                                 </div>
                                 {% if form.rol.errors %}
                                     {% for error in form.rol.errors %}
@@ -170,7 +170,7 @@
                                 {% endif %}
                             </div>
 
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-3" id="carreraDiv">
                                 {{ form.carrera.label(class="form-label") }}
                                 <div class="input-group">
                                     <span class="input-group-text">
@@ -184,7 +184,7 @@
                                     {% endfor %}
                                 {% endif %}
                                 <div class="form-text">
-                                    Obligatorio para profesores
+                                    Obligatorio para profesores y jefes de carrera
                                 </div>
                             </div>
                         </div>
@@ -245,25 +245,27 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Función para mostrar/ocultar campo de carrera basado en el rol
     function toggleCarreraField() {
-        const rolSelect = document.getElementById('rol');
-        const carreraGroup = document.getElementById('carrera').closest('.mb-3');
+        const rolSelect = document.getElementById('rolSelect');
+        const carreraDiv = document.getElementById('carreraDiv');
 
-        if (rolSelect && carreraGroup) {
+        if (rolSelect && carreraDiv) {
             const selectedRol = rolSelect.value;
-            if (selectedRol === 'profesor_completo' || selectedRol === 'profesor_asignatura') {
-                carreraGroup.style.display = 'block';
+            if (selectedRol === 'profesor_completo' || selectedRol === 'profesor_asignatura' || selectedRol === 'jefe_carrera') {
+                carreraDiv.style.display = 'block';
                 // Hacer el campo requerido
                 document.getElementById('carrera').setAttribute('required', 'required');
             } else {
-                carreraGroup.style.display = 'none';
+                carreraDiv.style.display = 'none';
                 // Quitar el atributo requerido
                 document.getElementById('carrera').removeAttribute('required');
+                // Limpiar el valor cuando se oculta
+                document.getElementById('carrera').value = '';
             }
         }
     }
 
     // Event listener para cambios en el rol
-    const rolSelect = document.getElementById('rol');
+    const rolSelect = document.getElementById('rolSelect');
     if (rolSelect) {
         rolSelect.addEventListener('change', toggleCarreraField);
         // Ejecutar al cargar la página

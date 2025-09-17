@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Profesor - {{ profesor.get_nombre_completo() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-edit"></i> Editar Profesor: {{ profesor.get_nombre_completo() }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.nombre.label(class="form-label") }}
+                                    {{ form.nombre(class="form-control" + (" is-invalid" if form.nombre.errors else "")) }}
+                                    {% if form.nombre.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.nombre.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.apellido.label(class="form-label") }}
+                                    {{ form.apellido(class="form-control" + (" is-invalid" if form.apellido.errors else "")) }}
+                                    {% if form.apellido.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.apellido.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.email.label(class="form-label") }}
+                                    {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                    {% if form.email.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.email.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.telefono.label(class="form-label") }}
+                                    {{ form.telefono(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.rol.label(class="form-label") }}
+                                    {{ form.rol(class="form-control" + (" is-invalid" if form.rol.errors else "")) }}
+                                    {% if form.rol.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.rol.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group" id="tipoProfesorGroup" style="display: none;">
+                                    {{ form.tipo_profesor.label(class="form-label") }}
+                                    {{ form.tipo_profesor(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Mostrar/ocultar campo de tipo de profesor según el rol seleccionado
+    function toggleTipoProfesor() {
+        var rol = $('#rol').val();
+        if (rol === 'profesor_completo' || rol === 'profesor_asignatura') {
+            $('#tipoProfesorGroup').show();
+        } else {
+            $('#tipoProfesorGroup').hide();
+        }
+    }
+    
+    // Ejecutar al cargar la página
+    toggleTipoProfesor();
+    
+    // Ejecutar cuando cambie el rol
+    $('#rol').change(toggleTipoProfesor);
+});
+</script>
+
+{% endblock %}

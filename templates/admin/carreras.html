@@ -88,6 +88,55 @@
     </div>
 </div>
 
+<!-- Estadísticas de jefes de carrera -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ carreras_con_jefes }}</h4>
+                        <p class="mb-0">Carreras con Jefe</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-tie fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ carreras_sin_jefes }}</h4>
+                        <p class="mb-0">Carreras sin Jefe</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-slash fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_jefes_carrera }}</h4>
+                        <p class="mb-0">Jefes de Carrera</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users-cog fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Lista de carreras -->
 <div class="row">
     <div class="col-12">
@@ -107,6 +156,7 @@
                                     <th>Código</th>
                                     <th>Nombre</th>
                                     <th>Facultad</th>
+                                    <th>Jefe de Carrera</th>
                                     <th>Profesores</th>
                                     <th>T.C.</th>
                                     <th>Asig.</th>
@@ -128,6 +178,19 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ carrera.facultad or 'No especificada' }}</td>
+                                    <td>
+                                        {% if carrera.tiene_jefe_carrera() %}
+                                            <div>
+                                                <i class="fas fa-user-tie text-primary me-1"></i>
+                                                <strong>{{ carrera.get_jefe_carrera_nombre() }}</strong>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">
+                                                <i class="fas fa-user-slash me-1"></i>
+                                                Sin asignar
+                                            </span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge bg-info">{{ carrera.get_profesores_count() }}</span>
                                     </td>
@@ -177,90 +240,6 @@
                                         </div>
                                     </td>
                                 </tr>
-
-                                <!-- Modal para ver detalles de la carrera -->
-                                <div class="modal fade" id="verCarreraModal{{ carrera.id }}" tabindex="-1">
-                                    <div class="modal-dialog modal-lg">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Detalles de la Carrera</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <table class="table table-borderless">
-                                                            <tr>
-                                                                <td><strong>Código:</strong></td>
-                                                                <td>{{ carrera.codigo }}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td><strong>Nombre:</strong></td>
-                                                                <td>{{ carrera.nombre }}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td><strong>Facultad:</strong></td>
-                                                                <td>{{ carrera.facultad or 'No especificada' }}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td><strong>Estado:</strong></td>
-                                                                <td>
-                                                                    {% if carrera.activa %}
-                                                                        <span class="badge bg-success">Activa</span>
-                                                                    {% else %}
-                                                                        <span class="badge bg-danger">Inactiva</span>
-                                                                    {% endif %}
-                                                                </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td><strong>Fecha Creación:</strong></td>
-                                                                <td>{{ carrera.fecha_creacion.strftime('%d/%m/%Y') }}</td>
-                                                            </tr>
-                                                        </table>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <h6>Estadísticas de Profesores</h6>
-                                                        <div class="row text-center">
-                                                            <div class="col-4">
-                                                                <div class="border rounded p-2">
-                                                                    <h4 class="text-primary">{{ carrera.get_profesores_count() }}</h4>
-                                                                    <small>Total</small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-4">
-                                                                <div class="border rounded p-2">
-                                                                    <h4 class="text-success">{{ carrera.get_profesores_completos_count() }}</h4>
-                                                                    <small>T.C.</small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-4">
-                                                                <div class="border rounded p-2">
-                                                                    <h4 class="text-warning">{{ carrera.get_profesores_asignatura_count() }}</h4>
-                                                                    <small>Asig.</small>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {% if carrera.descripcion %}
-                                                    <div class="row mt-3">
-                                                        <div class="col-12">
-                                                            <h6>Descripción</h6>
-                                                            <p class="text-muted">{{ carrera.descripcion }}</p>
-                                                        </div>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                                <a href="{{ url_for('editar_carrera', id=carrera.id) }}" class="btn btn-primary">
-                                                    <i class="fas fa-edit me-1"></i>
-                                                    Editar
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -280,4 +259,92 @@
         </div>
     </div>
 </div>
+
+<!-- Modales para ver detalles de las carreras -->
+{% if carreras %}
+    {% for modal_carrera in carreras %}
+    <div class="modal fade" id="verCarreraModal{{ modal_carrera.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalles de la Carrera</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Código:</strong></td>
+                                    <td>{{ modal_carrera.codigo }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Nombre:</strong></td>
+                                    <td>{{ modal_carrera.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Facultad:</strong></td>
+                                    <td>{{ modal_carrera.facultad or 'No especificada' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Estado:</strong></td>
+                                    <td>
+                                        {% if modal_carrera.activa %}
+                                            <span class="badge bg-success">Activa</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fecha Creación:</strong></td>
+                                    <td>{{ modal_carrera.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Estadísticas de Profesores</h6>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h4 class="text-primary">{{ modal_carrera.get_profesores_count() }}</h4>
+                                        <small>Total</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h4 class="text-success">{{ modal_carrera.get_profesores_completos_count() }}</h4>
+                                        <small>T.C.</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2">
+                                        <h4 class="text-warning">{{ modal_carrera.get_profesores_asignatura_count() }}</h4>
+                                        <small>Asig.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if modal_carrera.descripcion %}
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6>Descripción</h6>
+                                <p class="text-muted">{{ modal_carrera.descripcion }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <a href="{{ url_for('editar_carrera', id=modal_carrera.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i>
+                        Editar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
 {% endblock %}

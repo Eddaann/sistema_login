@@ -1,4 +1,82 @@
-/* Estilos personalizados para el sistema académico */
+/* Estilos para tablas responsivas */
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.table {
+    margin-bottom: 0;
+    background-color: white;
+}
+
+.table thead th {
+    background-color: #343a40;
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    padding: 1rem 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border: none;
+}
+
+.table .badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+}
+
+.btn-group .btn {
+    border-radius: 4px;
+    margin: 0 2px;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .table thead th,
+    .table td {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .table thead th {
+        font-size: 0.7rem;
+    }
+}
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

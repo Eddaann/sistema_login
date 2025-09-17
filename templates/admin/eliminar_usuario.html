@@ -15,8 +15,8 @@
             <div class="card-body">
                 <div class="text-center mb-4">
                     <i class="fas fa-user-times fa-4x text-danger mb-3"></i>
-                    <h4>¿Eliminar este usuario?</h4>
-                    <p class="text-muted">Esta acción marcará al usuario como inactivo y no podrá acceder al sistema</p>
+                    <h4>¿Eliminar permanentemente este usuario?</h4>
+                    <p class="text-muted">Esta acción eliminará completamente al usuario del sistema y no se puede deshacer</p>
                 </div>
 
                 <!-- Información del usuario a eliminar -->
@@ -67,10 +67,11 @@
                 </div>
 
                 <!-- Advertencia -->
-                <div class="alert alert-warning">
+                <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Advertencia:</strong> Una vez eliminado, el usuario no podrá acceder al sistema.
-                    Si deseas permitir el acceso nuevamente, deberás reactivarlo desde la lista de usuarios.
+                    <strong>Advertencia:</strong> Esta acción eliminará permanentemente al usuario del sistema.
+                    Se eliminarán también todos sus horarios académicos, disponibilidades y datos relacionados.
+                    <strong>Esta acción no se puede deshacer.</strong>
                 </div>
 
                 <form method="POST">
@@ -96,6 +97,10 @@
                             Cancelar
                         </a>
                         {{ form.submit(class="btn btn-danger") }}
+                        <div class="text-danger small mt-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Esta acción no se puede deshacer
+                        </div>
                     </div>
                 </form>
             </div>

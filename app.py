@@ -6,7 +6,8 @@ from forms import (LoginForm, RegistrationForm, HorarioForm, EliminarHorarioForm
                    CarreraForm, ImportarProfesoresForm, FiltrarProfesoresForm, ExportarProfesoresForm,
                    MateriaForm, ImportarMateriasForm, FiltrarMateriasForm, ExportarMateriasForm,
                    GenerarHorariosForm, EditarHorarioAcademicoForm, EliminarHorarioAcademicoForm,
-                   DisponibilidadProfesorForm, EditarDisponibilidadProfesorForm, AgregarProfesorForm)
+                   DisponibilidadProfesorForm, EditarDisponibilidadProfesorForm, AgregarProfesorForm,
+                   EditarUsuarioForm)
 from utils import procesar_archivo_profesores, generar_pdf_profesores, procesar_archivo_materias, generar_pdf_materias, generar_plantilla_csv
 from datetime import time, datetime
 import os
@@ -82,9 +83,9 @@ def register():
             # Obtener el rol final (considerando tipo de profesor)
             rol_final = form.get_final_rol()
             
-            # Para profesores, obtener la carrera seleccionada
+            # Para profesores y jefes de carrera, obtener la carrera seleccionada
             carrera_id = None
-            if rol_final in ['profesor_completo', 'profesor_asignatura']:
+            if rol_final in ['profesor_completo', 'profesor_asignatura', 'jefe_carrera']:
                 carrera_id = form.carrera.data
             
             # Crear nuevo usuario
@@ -162,9 +163,214 @@ def jefe_carrera_panel():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Obtener profesores para gestionar
-    profesores = User.query.filter(User.rol.in_(['profesor_completo', 'profesor_asignatura'])).all()
-    return render_template('jefe/panel.html', profesores=profesores)
+    # Verificar que el jefe tenga una carrera asignada
+    if not current_user.carrera_id:
+        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Obtener datos específicos de la carrera del jefe
+    profesores = current_user.get_profesores_carrera()
+    materias = current_user.get_materias_carrera()
+    horarios_academicos = current_user.get_horarios_academicos_carrera()
+    
+    return render_template('jefe/panel.html', 
+                         profesores=profesores, 
+                         materias=materias,
+                         horarios_academicos=horarios_academicos,
+                         carrera=current_user.carrera)
+
+# ==========================================
+# GESTIÓN DE PROFESORES PARA JEFES DE CARRERA
+# ==========================================
+
+@app.route('/jefe-carrera/profesores')
+@login_required
+def gestionar_profesores_jefe():
+    """Gestión de profesores para jefes de carrera (solo su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if not current_user.carrera_id:
+        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    profesores = current_user.get_profesores_carrera()
+    return render_template('jefe/profesores.html', profesores=profesores, carrera=current_user.carrera)
+
+@app.route('/jefe-carrera/profesor/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_profesor_jefe(id):
+    """Editar profesor para jefes de carrera (solo de su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    # Verificar que el profesor pertenezca a la carrera del jefe
+    if not current_user.puede_acceder_carrera(profesor.carrera_id):
+        flash('No tienes permisos para editar este profesor.', 'error')
+        return redirect(url_for('gestionar_profesores_jefe'))
+    
+    form = EditarUsuarioForm()
+    if form.validate_on_submit():
+        profesor.nombre = form.nombre.data
+        profesor.apellido = form.apellido.data
+        profesor.email = form.email.data
+        profesor.telefono = form.telefono.data
+        profesor.rol = form.rol.data
+        profesor.tipo_profesor = form.tipo_profesor.data if form.rol.data in ['profesor_completo', 'profesor_asignatura'] else None
+        
+        db.session.commit()
+        flash('Profesor actualizado exitosamente.', 'success')
+        return redirect(url_for('gestionar_profesores_jefe'))
+    
+    # Pre-llenar el formulario
+    form.nombre.data = profesor.nombre
+    form.apellido.data = profesor.apellido
+    form.email.data = profesor.email
+    form.telefono.data = profesor.telefono
+    form.rol.data = profesor.rol
+    form.tipo_profesor.data = profesor.tipo_profesor
+    
+    return render_template('jefe/editar_profesor.html', form=form, profesor=profesor)
+
+@app.route('/jefe-carrera/profesor/<int:id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_profesor_jefe(id):
+    """Eliminar profesor para jefes de carrera (solo de su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    # Verificar que el profesor pertenezca a la carrera del jefe
+    if not current_user.puede_acceder_carrera(profesor.carrera_id):
+        flash('No tienes permisos para eliminar este profesor.', 'error')
+        return redirect(url_for('gestionar_profesores_jefe'))
+    
+    # Desactivar en lugar de eliminar
+    profesor.activo = False
+    db.session.commit()
+    
+    flash('Profesor eliminado exitosamente.', 'success')
+    return redirect(url_for('gestionar_profesores_jefe'))
+
+# ==========================================
+# GESTIÓN DE MATERIAS PARA JEFES DE CARRERA
+# ==========================================
+
+@app.route('/jefe-carrera/materias')
+@login_required
+def gestionar_materias_jefe():
+    """Gestión de materias para jefes de carrera (solo su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if not current_user.carrera_id:
+        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    materias = current_user.get_materias_carrera()
+    return render_template('jefe/materias.html', materias=materias, carrera=current_user.carrera)
+
+@app.route('/jefe-carrera/materia/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_materia_jefe(id):
+    """Editar materia para jefes de carrera (solo de su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    materia = Materia.query.get_or_404(id)
+    
+    # Verificar que la materia pertenezca a la carrera del jefe
+    if not current_user.puede_acceder_carrera(materia.carrera_id):
+        flash('No tienes permisos para editar esta materia.', 'error')
+        return redirect(url_for('gestionar_materias_jefe'))
+    
+    form = MateriaForm()
+    if form.validate_on_submit():
+        materia.nombre = form.nombre.data
+        materia.codigo = form.codigo.data.upper()
+        materia.descripcion = form.descripcion.data
+        materia.cuatrimestre = form.cuatrimestre.data
+        materia.creditos = form.creditos.data
+        materia.horas_teoricas = form.horas_teoricas.data
+        materia.horas_practicas = form.horas_practicas.data
+        
+        db.session.commit()
+        flash('Materia actualizada exitosamente.', 'success')
+        return redirect(url_for('gestionar_materias_jefe'))
+    
+    # Pre-llenar el formulario
+    form.nombre.data = materia.nombre
+    form.codigo.data = materia.codigo
+    form.descripcion.data = materia.descripcion
+    form.cuatrimestre.data = materia.cuatrimestre
+    form.creditos.data = materia.creditos
+    form.horas_teoricas.data = materia.horas_teoricas
+    form.horas_practicas.data = materia.horas_practicas
+    
+    return render_template('jefe/editar_materia.html', form=form, materia=materia)
+
+# ==========================================
+# GESTIÓN DE HORARIOS ACADÉMICOS PARA JEFES DE CARRERA
+# ==========================================
+
+@app.route('/jefe-carrera/horarios-academicos')
+@login_required
+def gestionar_horarios_academicos_jefe():
+    """Gestión de horarios académicos para jefes de carrera (solo su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if not current_user.carrera_id:
+        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    horarios_academicos = current_user.get_horarios_academicos_carrera()
+    return render_template('jefe/horarios_academicos.html', 
+                         horarios_academicos=horarios_academicos, 
+                         carrera=current_user.carrera)
+
+@app.route('/jefe-carrera/horario-academico/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_horario_academico_jefe(id):
+    """Editar horario académico para jefes de carrera (solo de su carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    horario_academico = HorarioAcademico.query.get_or_404(id)
+    
+    # Verificar que el horario pertenezca a la carrera del jefe
+    if not current_user.puede_acceder_carrera(horario_academico.profesor.carrera_id):
+        flash('No tienes permisos para editar este horario académico.', 'error')
+        return redirect(url_for('gestionar_horarios_academicos_jefe'))
+    
+    form = EditarHorarioAcademicoForm()
+    if form.validate_on_submit():
+        horario_academico.horario_id = form.horario_id.data
+        horario_academico.aula = form.aula.data
+        horario_academico.dia_semana = form.dia_semana.data
+        
+        db.session.commit()
+        flash('Horario académico actualizado exitosamente.', 'success')
+        return redirect(url_for('gestionar_horarios_academicos_jefe'))
+    
+    # Pre-llenar el formulario
+    form.horario_id.data = horario_academico.horario_id
+    form.aula.data = horario_academico.aula
+    form.dia_semana.data = horario_academico.dia_semana
+    
+    return render_template('jefe/editar_horario_academico.html', 
+                         form=form, 
+                         horario_academico=horario_academico)
 
 @app.route('/profesor')
 @login_required
@@ -313,10 +519,26 @@ def gestionar_carreras():
     total_profesores = sum(carrera.get_profesores_count() for carrera in carreras)
     promedio_profesores = total_profesores / len(carreras) if carreras else 0
     
-    return render_template('admin/carreras_clean.html', 
+    # Estadísticas de jefes de carrera
+    carreras_con_jefes = sum(1 for carrera in carreras if carrera.tiene_jefe_carrera())
+    carreras_sin_jefes = len(carreras) - carreras_con_jefes
+    total_jefes_carrera = User.query.filter_by(rol='jefe_carrera', activo=True).count()
+    
+    # Obtener facultades únicas
+    facultades = set(carrera.facultad for carrera in carreras if carrera.facultad)
+    
+    # Contar carreras con profesores
+    carreras_con_profesores = sum(1 for carrera in carreras if carrera.get_profesores_count() > 0)
+    
+    return render_template('admin/carreras.html', 
                          carreras=carreras,
                          total_profesores=total_profesores,
-                         promedio_profesores=promedio_profesores)
+                         promedio_profesores=promedio_profesores,
+                         carreras_con_jefes=carreras_con_jefes,
+                         carreras_sin_jefes=carreras_sin_jefes,
+                         total_jefes_carrera=total_jefes_carrera,
+                         facultades=facultades,
+                         carreras_con_profesores=carreras_con_profesores)
 
 @app.route('/admin/carreras/test')
 @login_required
@@ -342,14 +564,30 @@ def nueva_carrera():
         try:
             carrera = Carrera(
                 nombre=form.nombre.data,
-                codigo=form.codigo.data,
-                descripcion=form.descripcion.data
+                codigo=form.codigo.data.upper(),
+                descripcion=form.descripcion.data,
+                facultad=form.facultad.data,
+                creada_por=current_user.id
             )
             
             db.session.add(carrera)
+            db.session.flush()  # Para obtener el ID de la carrera
+            
+            # Asignar jefe de carrera si se seleccionó uno
+            if form.jefe_carrera_id.data:
+                jefe = User.query.get(form.jefe_carrera_id.data)
+                if jefe:
+                    jefe.rol = 'jefe_carrera'
+                    jefe.carrera_id = carrera.id
+            
             db.session.commit()
             
-            flash(f'Carrera "{carrera.nombre}" creada exitosamente.', 'success')
+            mensaje = f'Carrera "{carrera.nombre}" creada exitosamente.'
+            if form.jefe_carrera_id.data:
+                jefe = User.query.get(form.jefe_carrera_id.data)
+                mensaje += f' Jefe de carrera asignado: {jefe.get_nombre_completo()}.'
+                
+            flash(mensaje, 'success')
             return redirect(url_for('gestionar_carreras'))
             
         except Exception as e:
@@ -372,16 +610,61 @@ def editar_carrera(id):
         flash('Esta carrera no está disponible.', 'error')
         return redirect(url_for('gestionar_carreras'))
     
-    form = CarreraForm(obj=carrera)
+    # Crear formulario sin usar obj=carrera para evitar conflictos
+    form = CarreraForm()
+    form._carrera_id = carrera.id  # Para validación de código único
+    
+    # Cargar datos manualmente en GET
+    if request.method == 'GET':
+        form.nombre.data = carrera.nombre
+        form.codigo.data = carrera.codigo
+        form.descripcion.data = carrera.descripcion
+        form.facultad.data = carrera.facultad
+        
+        # Cargar el jefe de carrera actual
+        jefe_actual = carrera.get_jefe_carrera()
+        if jefe_actual:
+            form.jefe_carrera_id.data = str(jefe_actual.id)
+        else:
+            form.jefe_carrera_id.data = ''
+    
     if form.validate_on_submit():
         try:
+            # Actualizar datos básicos de la carrera
             carrera.nombre = form.nombre.data
-            carrera.codigo = form.codigo.data
+            carrera.codigo = form.codigo.data.upper()
             carrera.descripcion = form.descripcion.data
+            carrera.facultad = form.facultad.data
+            
+            # Manejar cambio de jefe de carrera
+            nuevo_jefe_id = form.jefe_carrera_id.data
+            jefe_anterior = carrera.get_jefe_carrera()
+            
+            # Remover rol de jefe_carrera del usuario anterior si existe
+            if jefe_anterior:
+                jefe_anterior.rol = 'profesor'  # Cambiar a profesor regular
+                jefe_anterior.carrera_id = carrera.id  # Mantener en la misma carrera
+            
+            # Asignar nuevo jefe de carrera si se seleccionó uno
+            if nuevo_jefe_id:
+                nuevo_jefe = User.query.get(nuevo_jefe_id)
+                if nuevo_jefe:
+                    nuevo_jefe.rol = 'jefe_carrera'
+                    nuevo_jefe.carrera_id = carrera.id
             
             db.session.commit()
             
-            flash(f'Carrera "{carrera.nombre}" actualizada exitosamente.', 'success')
+            mensaje = f'Carrera "{carrera.nombre}" actualizada exitosamente.'
+            if jefe_anterior and nuevo_jefe_id and str(jefe_anterior.id) != str(nuevo_jefe_id):
+                nuevo_jefe = User.query.get(nuevo_jefe_id)
+                mensaje += f' Nuevo jefe de carrera: {nuevo_jefe.get_nombre_completo()}.'
+            elif nuevo_jefe_id and not jefe_anterior:
+                nuevo_jefe = User.query.get(nuevo_jefe_id)
+                mensaje += f' Jefe de carrera asignado: {nuevo_jefe.get_nombre_completo()}.'
+            elif not nuevo_jefe_id and jefe_anterior:
+                mensaje += f' Se removió el jefe de carrera anterior.'
+                
+            flash(mensaje, 'success')
             return redirect(url_for('gestionar_carreras'))
             
         except Exception as e:
@@ -1241,6 +1524,10 @@ def editar_usuario(id):
     form = EditarUsuarioForm(user=usuario)
 
     if form.validate_on_submit():
+        # Verificar cambios en el rol y carrera
+        rol_anterior = usuario.rol
+        carrera_anterior = usuario.carrera_id
+        
         # Actualizar usuario
         usuario.username = form.username.data
         usuario.email = form.email.data
@@ -1250,6 +1537,25 @@ def editar_usuario(id):
         usuario.telefono = form.telefono.data
         usuario.carrera_id = int(form.carrera.data) if form.carrera.data else None
         usuario.activo = form.activo.data
+
+        # Si se cambió de jefe de carrera a otro rol, liberar la carrera
+        if rol_anterior == 'jefe_carrera' and usuario.rol != 'jefe_carrera' and carrera_anterior:
+            # La carrera queda libre para otro jefe
+            pass
+
+        # Si se cambió a jefe de carrera desde otro rol, verificar que la carrera esté libre
+        if rol_anterior != 'jefe_carrera' and usuario.rol == 'jefe_carrera' and usuario.carrera_id:
+            # Verificar que no haya otro jefe activo para esta carrera
+            existing_jefe = User.query.filter(
+                User.rol == 'jefe_carrera',
+                User.carrera_id == usuario.carrera_id,
+                User.activo == True,
+                User.id != usuario.id
+            ).first()
+            if existing_jefe:
+                flash(f'Error: Ya existe un jefe de carrera activo para esta carrera ({existing_jefe.get_nombre_completo()}).', 'error')
+                db.session.rollback()
+                return render_template('admin/usuario_form.html', form=form, titulo="Editar Usuario", usuario=usuario)
 
         try:
             db.session.commit()
@@ -1293,10 +1599,23 @@ def eliminar_usuario(id):
     if form.validate_on_submit():
         if form.confirmacion.data == 'ELIMINAR':
             try:
-                # Marcar como inactivo en lugar de eliminar físicamente
-                usuario.activo = False
+                # Eliminar físicamente el usuario y sus relaciones
+                # Primero eliminar las relaciones que podrían causar problemas
+                
+                # Eliminar horarios académicos donde el usuario es profesor
+                from models import HorarioAcademico, DisponibilidadProfesor
+                HorarioAcademico.query.filter_by(profesor_id=usuario.id).delete()
+                HorarioAcademico.query.filter_by(creado_por=usuario.id).delete()
+                
+                # Eliminar disponibilidades del profesor
+                DisponibilidadProfesor.query.filter_by(profesor_id=usuario.id).delete()
+                DisponibilidadProfesor.query.filter_by(creado_por=usuario.id).delete()
+                
+                # Eliminar el usuario físicamente
+                db.session.delete(usuario)
                 db.session.commit()
-                flash(f'Usuario {usuario.get_nombre_completo()} eliminado exitosamente.', 'success')
+                
+                flash(f'Usuario {usuario.get_nombre_completo()} eliminado permanentemente.', 'success')
                 return redirect(url_for('gestionar_usuarios'))
             except Exception as e:
                 db.session.rollback()

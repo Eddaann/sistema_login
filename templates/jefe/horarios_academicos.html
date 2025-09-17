@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Horarios Académicos - {{ carrera.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-calendar-alt"></i> Horarios Académicos de {{ carrera.nombre }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('jefe_carrera_panel') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver al Panel
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if horarios_academicos %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Profesor</th>
+                                        <th>Materia</th>
+                                        <th>Día</th>
+                                        <th>Horario</th>
+                                        <th>Aula</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in horarios_academicos %}
+                                    <tr>
+                                        <td>{{ horario.profesor.get_nombre_completo() }}</td>
+                                        <td>{{ horario.materia.nombre }}</td>
+                                        <td>
+                                            {% if horario.dia_semana == 'lunes' %}
+                                                <span class="badge badge-primary">Lunes</span>
+                                            {% elif horario.dia_semana == 'martes' %}
+                                                <span class="badge badge-success">Martes</span>
+                                            {% elif horario.dia_semana == 'miercoles' %}
+                                                <span class="badge badge-info">Miércoles</span>
+                                            {% elif horario.dia_semana == 'jueves' %}
+                                                <span class="badge badge-warning">Jueves</span>
+                                            {% elif horario.dia_semana == 'viernes' %}
+                                                <span class="badge badge-danger">Viernes</span>
+                                            {% elif horario.dia_semana == 'sabado' %}
+                                                <span class="badge badge-secondary">Sábado</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ horario.horario.nombre }}<br>
+                                            <small class="text-muted">
+                                                {{ horario.horario.get_hora_inicio_str() }} - {{ horario.horario.get_hora_fin_str() }}
+                                            </small>
+                                        </td>
+                                        <td>{{ horario.aula or 'No asignada' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('editar_horario_academico_jefe', id=horario.id) }}" 
+                                               class="btn btn-sm btn-primary" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No hay horarios académicos registrados para esta carrera.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

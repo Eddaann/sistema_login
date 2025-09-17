@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Jefe de Carrera - {{ carrera.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-user-tie"></i> Panel de Jefe de Carrera
+                    </h3>
+                    <div class="card-tools">
+                        <span class="badge badge-primary">{{ carrera.nombre }} ({{ carrera.codigo }})</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Estadísticas -->
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3>{{ profesores|length }}</h3>
+                                    <p>Profesores</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <a href="{{ url_for('gestionar_profesores_jefe') }}" class="small-box-footer">
+                                    Gestionar <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-success">
+                                <div class="inner">
+                                    <h3>{{ materias|length }}</h3>
+                                    <p>Materias</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <a href="{{ url_for('gestionar_materias_jefe') }}" class="small-box-footer">
+                                    Gestionar <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-warning">
+                                <div class="inner">
+                                    <h3>{{ horarios_academicos|length }}</h3>
+                                    <p>Horarios Académicos</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <a href="{{ url_for('gestionar_horarios_academicos_jefe') }}" class="small-box-footer">
+                                    Gestionar <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-danger">
+                                <div class="inner">
+                                    <h3>{{ carrera.get_profesores_count() }}</h3>
+                                    <p>Total Profesores Activos</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-user-graduate"></i>
+                                </div>
+                                <div class="small-box-footer">&nbsp;</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Accesos Rápidos -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h4>Accesos Rápidos</h4>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                            <h5>Gestionar Profesores</h5>
+                                            <p class="text-muted">Editar información y gestionar profesores de {{ carrera.nombre }}</p>
+                                            <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-primary">
+                                                <i class="fas fa-arrow-right"></i> Ir a Profesores
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-book fa-3x text-success mb-3"></i>
+                                            <h5>Gestionar Materias</h5>
+                                            <p class="text-muted">Administrar materias de {{ carrera.nombre }}</p>
+                                            <a href="{{ url_for('gestionar_materias_jefe') }}" class="btn btn-success">
+                                                <i class="fas fa-arrow-right"></i> Ir a Materias
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-calendar-alt fa-3x text-warning mb-3"></i>
+                                            <h5>Horarios Académicos</h5>
+                                            <p class="text-muted">Gestionar horarios de clases de {{ carrera.nombre }}</p>
+                                            <a href="{{ url_for('gestionar_horarios_academicos_jefe') }}" class="btn btn-warning">
+                                                <i class="fas fa-arrow-right"></i> Ir a Horarios
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información de la Carrera -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-info-circle"></i> Información de la Carrera
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <dl class="row">
+                                                <dt class="col-sm-4">Nombre:</dt>
+                                                <dd class="col-sm-8">{{ carrera.nombre }}</dd>
+
+                                                <dt class="col-sm-4">Código:</dt>
+                                                <dd class="col-sm-8">{{ carrera.codigo }}</dd>
+
+                                                <dt class="col-sm-4">Facultad:</dt>
+                                                <dd class="col-sm-8">{{ carrera.facultad or 'No especificada' }}</dd>
+                                            </dl>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <dl class="row">
+                                                <dt class="col-sm-4">Profesores:</dt>
+                                                <dd class="col-sm-8">{{ carrera.get_profesores_count() }}</dd>
+
+                                                <dt class="col-sm-4">Materias:</dt>
+                                                <dd class="col-sm-8">{{ materias|length }}</dd>
+
+                                                <dt class="col-sm-4">Estado:</dt>
+                                                <dd class="col-sm-8">
+                                                    {% if carrera.activa %}
+                                                        <span class="badge badge-success">Activa</span>
+                                                    {% else %}
+                                                        <span class="badge badge-danger">Inactiva</span>
+                                                    {% endif %}
+                                                </dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                    {% if carrera.descripcion %}
+                                    <div class="mt-3">
+                                        <h6>Descripción:</h6>
+                                        <p class="text-muted">{{ carrera.descripcion }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

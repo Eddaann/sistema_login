@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Gestionar Materias - {{ carrera.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-book"></i> Materias de {{ carrera.nombre }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('jefe_carrera_panel') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver al Panel
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if materias %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre</th>
+                                        <th>Cuatrimestre</th>
+                                        <th>Créditos</th>
+                                        <th>Horas Totales</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for materia in materias %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge badge-primary">{{ materia.codigo }}</span>
+                                        </td>
+                                        <td>{{ materia.nombre }}</td>
+                                        <td>{{ materia.get_cuatrimestre_display() }}</td>
+                                        <td>{{ materia.creditos }}</td>
+                                        <td>{{ materia.get_horas_totales() }}</td>
+                                        <td>
+                                            {% if materia.activa %}
+                                                <span class="badge badge-success">Activa</span>
+                                            {% else %}
+                                                <span class="badge badge-danger">Inactiva</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('editar_materia_jefe', id=materia.id) }}" 
+                                               class="btn btn-sm btn-primary" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No hay materias registradas en esta carrera.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

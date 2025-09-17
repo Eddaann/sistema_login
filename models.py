@@ -24,9 +24,9 @@ class User(UserMixin, db.Model):
     # Para profesores: especifica si es de tiempo completo o por asignatura
     tipo_profesor = db.Column(db.String(20))
     
-    # Relación con carrera (para profesores)
+    # Relación con carrera (para profesores y jefes de carrera)
     carrera_id = db.Column(db.Integer, db.ForeignKey('carrera.id'), nullable=True)
-    carrera = db.relationship('Carrera', foreign_keys=[carrera_id], backref=db.backref('profesores', lazy=True))
+    carrera = db.relationship('Carrera', foreign_keys=[carrera_id], backref=db.backref('usuarios', lazy=True))
     
     # Campos adicionales
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
@@ -112,6 +112,43 @@ class User(UserMixin, db.Model):
             'fecha_registro': self.fecha_registro.strftime('%d/%m/%Y')
         }
         return info
+    
+    def puede_acceder_carrera(self, carrera_id):
+        """Verificar si el jefe de carrera puede acceder a una carrera específica"""
+        if self.is_admin():
+            return True
+        if self.is_jefe_carrera():
+            return self.carrera_id == carrera_id
+        return False
+    
+    def get_profesores_carrera(self):
+        """Obtener profesores de la carrera del jefe (solo para jefes de carrera)"""
+        if not self.is_jefe_carrera() or not self.carrera_id:
+            return []
+        return User.query.filter(
+            User.carrera_id == self.carrera_id,
+            User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+            User.activo == True
+        ).all()
+    
+    def get_materias_carrera(self):
+        """Obtener materias de la carrera del jefe (solo para jefes de carrera)"""
+        if not self.is_jefe_carrera() or not self.carrera_id:
+            return []
+        from models import Materia
+        return Materia.query.filter(
+            Materia.carrera_id == self.carrera_id,
+            Materia.activa == True
+        ).all()
+    
+    def get_horarios_academicos_carrera(self):
+        """Obtener horarios académicos de la carrera del jefe (solo para jefes de carrera)"""
+        if not self.is_jefe_carrera() or not self.carrera_id:
+            return []
+        from models import HorarioAcademico
+        return HorarioAcademico.query.join(User, HorarioAcademico.profesor_id == User.id).filter(
+            User.carrera_id == self.carrera_id
+        ).all()
     
     def __repr__(self):
         return f'<User {self.username}>'
@@ -212,6 +249,23 @@ class Carrera(db.Model):
             User.rol == 'profesor_asignatura',
             User.activo == True
         ).count()
+    
+    def get_jefe_carrera(self):
+        """Obtener el jefe de carrera asignado a esta carrera"""
+        return User.query.filter(
+            User.carrera_id == self.id,
+            User.rol == 'jefe_carrera',
+            User.activo == True
+        ).first()
+    
+    def tiene_jefe_carrera(self):
+        """Verificar si la carrera tiene un jefe asignado"""
+        return self.get_jefe_carrera() is not None
+    
+    def get_jefe_carrera_nombre(self):
+        """Obtener el nombre del jefe de carrera"""
+        jefe = self.get_jefe_carrera()
+        return jefe.get_nombre_completo() if jefe else 'Sin asignar'
     
     def __repr__(self):
         return f'<Carrera {self.codigo} - {self.nombre}>'

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Horario Académico{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-edit"></i> Editar Horario Académico
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('gestionar_horarios_academicos_jefe') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>Información del Horario</h5>
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Profesor:</dt>
+                                        <dd class="col-sm-7">{{ horario_academico.profesor.get_nombre_completo() }}</dd>
+                                        
+                                        <dt class="col-sm-5">Materia:</dt>
+                                        <dd class="col-sm-7">{{ horario_academico.materia.nombre }}</dd>
+                                        
+                                        <dt class="col-sm-5">Carrera:</dt>
+                                        <dd class="col-sm-7">{{ horario_academico.materia.carrera.nombre }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>Horario Actual</h5>
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Día:</dt>
+                                        <dd class="col-sm-7">
+                                            {% if horario_academico.dia_semana == 'lunes' %}Lunes
+                                            {% elif horario_academico.dia_semana == 'martes' %}Martes
+                                            {% elif horario_academico.dia_semana == 'miercoles' %}Miércoles
+                                            {% elif horario_academico.dia_semana == 'jueves' %}Jueves
+                                            {% elif horario_academico.dia_semana == 'viernes' %}Viernes
+                                            {% elif horario_academico.dia_semana == 'sabado' %}Sábado
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-5">Horario:</dt>
+                                        <dd class="col-sm-7">
+                                            {{ horario_academico.horario.nombre }}<br>
+                                            <small class="text-muted">
+                                                {{ horario_academico.horario.get_hora_inicio_str() }} - {{ horario_academico.horario.get_hora_fin_str() }}
+                                            </small>
+                                        </dd>
+                                        
+                                        <dt class="col-sm-5">Aula:</dt>
+                                        <dd class="col-sm-7">{{ horario_academico.aula or 'No asignada' }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.dia_semana.label(class="form-label") }}
+                                    {{ form.dia_semana(class="form-control" + (" is-invalid" if form.dia_semana.errors else "")) }}
+                                    {% if form.dia_semana.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.dia_semana.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.aula.label(class="form-label") }}
+                                    {{ form.aula(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('gestionar_horarios_academicos_jefe') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

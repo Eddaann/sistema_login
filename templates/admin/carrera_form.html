@@ -47,7 +47,22 @@
                             {% endif %}
                         </div>
                         
-                        <div class="mb-4">
+                        <div class="mb-3">
+                            {{ form.facultad.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-university"></i>
+                                </span>
+                                {{ form.facultad(class="form-control", placeholder="Ej: Facultad de Ingeniería") }}
+                            </div>
+                            {% if form.facultad.errors %}
+                                {% for error in form.facultad.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
                             {{ form.descripcion.label(class="form-label") }}
                             <div class="input-group">
                                 <span class="input-group-text">
@@ -60,6 +75,25 @@
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
                             {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            {{ form.jefe_carrera_id.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user-tie"></i>
+                                </span>
+                                {{ form.jefe_carrera_id(class="form-select") }}
+                            </div>
+                            {% if form.jefe_carrera_id.errors %}
+                                {% for error in form.jefe_carrera_id.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Seleccione un profesor para asignar como jefe de carrera. Si ya tiene otro rol de jefe, se cambiará automáticamente.
+                            </div>
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -86,16 +120,30 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <p><strong>Fecha de Creación:</strong></p>
                             <p class="text-muted">{{ carrera.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <p><strong>Profesores Asignados:</strong></p>
                             <p class="text-muted">
                                 <span class="badge bg-primary">{{ carrera.get_profesores_count() }}</span>
                                 profesores activos
                             </p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Jefe de Carrera Actual:</strong></p>
+                            {% if carrera.tiene_jefe_carrera() %}
+                                <p class="text-success">
+                                    <i class="fas fa-user-tie me-1"></i>
+                                    {{ carrera.get_jefe_carrera_nombre() }}
+                                </p>
+                            {% else %}
+                                <p class="text-muted">
+                                    <i class="fas fa-user-slash me-1"></i>
+                                    Sin asignar
+                                </p>
+                            {% endif %}
                         </div>
                     </div>
                     

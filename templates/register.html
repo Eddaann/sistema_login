@@ -191,6 +191,12 @@ document.addEventListener('DOMContentLoaded', function() {
             carreraDiv.style.display = 'block';
             document.getElementById('tipo_profesor').required = true;
             document.getElementById('carrera').required = true;
+        } else if (rolSelect.value === 'jefe_carrera') {
+            tipoProfesorDiv.style.display = 'none';
+            carreraDiv.style.display = 'block';
+            document.getElementById('tipo_profesor').required = false;
+            document.getElementById('carrera').required = true;
+            document.getElementById('tipo_profesor').value = '';
         } else {
             tipoProfesorDiv.style.display = 'none';
             carreraDiv.style.display = 'none';

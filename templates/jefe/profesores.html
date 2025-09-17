@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Gestionar Profesores - {{ carrera.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-users"></i> Profesores de {{ carrera.nombre }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('jefe_carrera_panel') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver al Panel
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if profesores %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre Completo</th>
+                                        <th>Tipo</th>
+                                        <th>Email</th>
+                                        <th>Teléfono</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for profesor in profesores %}
+                                    <tr>
+                                        <td>{{ profesor.get_nombre_completo() }}</td>
+                                        <td>
+                                            {% if profesor.is_profesor_completo() %}
+                                                <span class="badge badge-success">Tiempo Completo</span>
+                                            {% elif profesor.is_profesor_asignatura() %}
+                                                <span class="badge badge-info">Por Asignatura</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ profesor.email }}</td>
+                                        <td>{{ profesor.telefono or 'No especificado' }}</td>
+                                        <td>
+                                            {% if profesor.activo %}
+                                                <span class="badge badge-success">Activo</span>
+                                            {% else %}
+                                                <span class="badge badge-danger">Inactivo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('editar_profesor_jefe', id=profesor.id) }}" 
+                                                   class="btn btn-sm btn-primary" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% if profesor.activo %}
+                                                <button type="button" class="btn btn-sm btn-danger eliminar-btn" 
+                                                        data-id="{{ profesor.id }}" 
+                                                        data-nombre="{{ profesor.get_nombre_completo() }}" 
+                                                        title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No hay profesores registrados en esta carrera.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="eliminarModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar al profesor <strong id="profesorNombre"></strong>?</p>
+                <p class="text-warning">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <form id="eliminarForm" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('.eliminar-btn').on('click', function() {
+        var profesorId = $(this).data('id');
+        var profesorNombre = $(this).data('nombre');
+        
+        document.getElementById('profesorNombre').textContent = profesorNombre;
+        document.getElementById('eliminarForm').action = '{{ url_for("eliminar_profesor_jefe", id=0) }}'.replace('0', profesorId);
+        $('#eliminarModal').modal('show');
+    });
+});
+</script>
+
+{% endblock %}
