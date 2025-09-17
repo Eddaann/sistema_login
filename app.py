@@ -1715,7 +1715,14 @@ def probar_conexion():
 
         elif db_type == 'postgresql':
             # Probar conexión PostgreSQL
-            import psycopg2
+            try:
+                import psycopg2  # type: ignore[import-untyped]
+            except ImportError:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Driver PostgreSQL no instalado. Instale con: pip install psycopg2-binary'
+                })
+            
             conn = psycopg2.connect(
                 host=data.get('host', 'localhost'),
                 port=data.get('port', '5432'),
@@ -1729,7 +1736,14 @@ def probar_conexion():
 
         elif db_type in ['mysql', 'mariadb']:
             # Probar conexión MySQL/MariaDB
-            import mysql.connector
+            try:
+                import mysql.connector  # type: ignore[import-untyped]
+            except ImportError:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Driver MySQL no instalado. Instale con: pip install mysql-connector-python'
+                })
+            
             conn = mysql.connector.connect(
                 host=data.get('host', 'localhost'),
                 port=int(data.get('port', '3306')),
