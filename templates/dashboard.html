@@ -233,20 +233,20 @@
                         <div class="col-md-6 mb-3">
                             <div class="card border-primary">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
-                                    <h6>Mis Materias</h6>
-                                    <p class="small text-muted">Ver y gestionar mis materias asignadas</p>
-                                    <button class="btn btn-primary btn-sm">Ver Materias</button>
+                                    <i class="fas fa-chalkboard-teacher fa-2x text-primary mb-2"></i>
+                                    <h6>Panel del Profesor</h6>
+                                    <p class="small text-muted">Acceder al panel completo de profesor</p>
+                                    <a href="{{ url_for('profesor_panel') }}" class="btn btn-primary btn-sm">Panel Profesor</a>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <div class="card border-success">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-users fa-2x text-success mb-2"></i>
-                                    <h6>Mis Estudiantes</h6>
-                                    <p class="small text-muted">Lista de estudiantes por materia</p>
-                                    <button class="btn btn-success btn-sm">Ver Estudiantes</button>
+                                    <i class="fas fa-calendar-alt fa-2x text-success mb-2"></i>
+                                    <h6>Mis Horarios</h6>
+                                    <p class="small text-muted">Ver mis horarios y materias asignadas</p>
+                                    <a href="{{ url_for('profesor_horarios') }}" class="btn btn-success btn-sm">Ver Horarios</a>
                                 </div>
                             </div>
                         </div>
@@ -256,17 +256,17 @@
                                     <i class="fas fa-star fa-2x text-warning mb-2"></i>
                                     <h6>Calificaciones</h6>
                                     <p class="small text-muted">Registrar y consultar calificaciones</p>
-                                    <button class="btn btn-warning btn-sm">Calificar</button>
+                                    <button class="btn btn-warning btn-sm" disabled>Próximamente</button>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <div class="card border-info">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-calendar-check fa-2x text-info mb-2"></i>
-                                    <h6>Asistencia</h6>
-                                    <p class="small text-muted">Registrar asistencia de estudiantes</p>
-                                    <button class="btn btn-info btn-sm">Asistencia</button>
+                                    <i class="fas fa-users fa-2x text-info mb-2"></i>
+                                    <h6>Mis Estudiantes</h6>
+                                    <p class="small text-muted">Lista de estudiantes por materia</p>
+                                    <button class="btn btn-info btn-sm" disabled>Próximamente</button>
                                 </div>
                             </div>
                         </div>

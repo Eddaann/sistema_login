@@ -382,6 +382,40 @@ def profesor_panel():
     
     return render_template('profesor/panel.html')
 
+@app.route('/profesor/horarios')
+@login_required
+def profesor_horarios():
+    """Ver horarios asignados al profesor"""
+    if not current_user.is_profesor():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Obtener horarios académicos del profesor actual
+    horarios = HorarioAcademico.query.filter_by(
+        profesor_id=current_user.id,
+        activo=True
+    ).join(Horario).order_by(
+        Horario.orden,
+        HorarioAcademico.dia_semana
+    ).all()
+    
+    # Organizar horarios por día de la semana
+    dias_semana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+    horarios_por_dia = {}
+    
+    for dia in dias_semana:
+        horarios_por_dia[dia] = [h for h in horarios if h.dia_semana == dia]
+    
+    # Estadísticas del profesor
+    total_horas = len(horarios)
+    materias_unicas = len(set(h.materia_id for h in horarios))
+    
+    return render_template('profesor/horarios.html', 
+                         horarios_por_dia=horarios_por_dia,
+                         total_horas=total_horas,
+                         materias_unicas=materias_unicas,
+                         dias_semana=dias_semana)
+
 # Rutas de gestión de horarios (solo administradores)
 @app.route('/admin/horarios')
 @login_required

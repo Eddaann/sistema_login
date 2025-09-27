@@ -242,3 +242,42 @@ footer {
 .border-purple {
     border-color: #6f42c1 !important;
 }
+
+/* Efectos hover para el botón de usuario en la navbar */
+.navbar .nav-link.dropdown-toggle {
+    position: relative;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 0.5rem 1rem !important;
+}
+
+.navbar .nav-link.dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    color: #ffffff !important;
+}
+
+.navbar .nav-link.dropdown-toggle:focus {
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+/* Efecto de brillo al hacer hover */
+.navbar .nav-link.dropdown-toggle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.navbar .nav-link.dropdown-toggle:hover::before {
+    opacity: 1;
+}

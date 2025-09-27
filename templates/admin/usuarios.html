@@ -122,17 +122,15 @@
                         <input type="text" class="form-control" id="busqueda" name="busqueda"
                                placeholder="Nombre, apellido, usuario o email" value="{{ filtros_activos['busqueda'] or '' }}">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <div class="w-100">
-                            <button type="submit" class="btn btn-primary me-2 w-50">
-                                <i class="fas fa-search me-1"></i>
-                                Filtrar
-                            </button>
-                            <a href="{{ url_for('gestionar_usuarios') }}" class="btn btn-outline-secondary w-50">
-                                <i class="fas fa-times me-1"></i>
-                                Limpiar
-                            </a>
-                        </div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>
+                            Filtrar
+                        </button>
+                        <a href="{{ url_for('gestionar_usuarios') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>
+                            Limpiar
+                        </a>
                     </div>
                 </form>
             </div>

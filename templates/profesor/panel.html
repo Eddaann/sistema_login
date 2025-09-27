@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del Profesor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>
+                    <i class="fas fa-chalkboard-teacher me-2"></i>
+                    Panel del Profesor
+                </h2>
+                <p class="text-muted mb-0">Bienvenido/a, {{ current_user.nombre }} {{ current_user.apellido }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-home me-1"></i>
+                    Dashboard Principal
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información del profesor -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user me-2"></i>
+                    Mi Información
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ current_user.nombre }} {{ current_user.apellido }}</p>
+                <p><strong>Email:</strong> {{ current_user.email }}</p>
+                <p><strong>Carrera:</strong> 
+                    {% if current_user.carrera %}
+                        {{ current_user.carrera.nombre }}
+                    {% else %}
+                        <span class="text-muted">Sin asignar</span>
+                    {% endif %}
+                </p>
+                <p class="mb-0"><strong>Rol:</strong> 
+                    <span class="badge bg-success">Profesor</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar me-2"></i>
+                    Resumen de Actividades
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Accede a tus horarios y materias asignadas desde las opciones disponibles.</p>
+                <div class="d-grid">
+                    <a href="{{ url_for('profesor_horarios') }}" class="btn btn-primary">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Ver Mis Horarios
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Opciones principales -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>
+                    Opciones Disponibles
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Horarios -->
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-calendar-alt fa-3x text-primary"></i>
+                                </div>
+                                <h5 class="card-title">Mis Horarios</h5>
+                                <p class="card-text text-muted">
+                                    Consulta tus horarios de clases, materias asignadas y distribución semanal.
+                                </p>
+                                <a href="{{ url_for('profesor_horarios') }}" class="btn btn-primary">
+                                    <i class="fas fa-eye me-1"></i>
+                                    Ver Horarios
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder para futuras funciones -->
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-users fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Mis Estudiantes</h5>
+                                <p class="card-text text-muted">
+                                    Próximamente: Lista de estudiantes y gestión de calificaciones.
+                                </p>
+                                <button class="btn btn-secondary" disabled>
+                                    <i class="fas fa-clock me-1"></i>
+                                    Próximamente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder para reportes -->
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-chart-bar fa-3x text-secondary"></i>
+                                </div>
+                                <h5 class="card-title">Reportes</h5>
+                                <p class="card-text text-muted">
+                                    Próximamente: Reportes de asistencia y rendimiento académico.
+                                </p>
+                                <button class="btn btn-secondary" disabled>
+                                    <i class="fas fa-clock me-1"></i>
+                                    Próximamente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ayuda y soporte -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>
+                    Ayuda y Soporte
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>¿Necesitas ayuda?</h6>
+                        <p class="text-muted">
+                            Si tienes dudas sobre el uso del sistema o problemas con tus horarios, 
+                            contacta al administrador del sistema o al jefe de carrera.
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Reportar Problemas</h6>
+                        <p class="text-muted">
+                            Si encuentras errores en tus horarios o información incorrecta, 
+                            repórtalo inmediatamente al administrador para su corrección.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar efectos hover a las cards
+    document.querySelectorAll('.card.shadow-sm').forEach(function(card) {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+            this.style.transition = 'all 0.3s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '';
+        });
+    });
+});
+</script>
+{% endblock %}

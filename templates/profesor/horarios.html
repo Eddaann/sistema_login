@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Horarios - Profesor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-calendar-alt me-2"></i>
+                Mis Horarios
+            </h2>
+            <div>
+                <a href="{{ url_for('profesor_panel') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Volver al Panel
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas del profesor -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ total_horas }}</h4>
+                        <p class="mb-0">Horas Semanales</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ materias_unicas }}</h4>
+                        <p class="mb-0">Materias Diferentes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-book fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">{{ current_user.carrera.nombre if current_user.carrera else 'Sin asignar' }}</h4>
+                        <p class="mb-0">Carrera Asignada</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-graduation-cap fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Horario semanal -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-week me-2"></i>
+                    Horario Semanal
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if horarios_por_dia %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="15%">Día</th>
+                                    <th width="15%">Hora</th>
+                                    <th width="20%">Materia</th>
+                                    <th width="15%">Código</th>
+                                    <th width="15%">Aula</th>
+                                    <th width="20%">Turno</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dia in dias_semana %}
+                                    {% set horarios_dia = horarios_por_dia[dia] %}
+                                    {% if horarios_dia %}
+                                        {% for horario in horarios_dia %}
+                                        <tr>
+                                            {% if loop.first %}
+                                            <td rowspan="{{ horarios_dia|length }}" class="align-middle fw-bold bg-light">
+                                                {{ horario.get_dia_display() }}
+                                            </td>
+                                            {% endif %}
+                                            <td>
+                                                <span class="badge bg-primary">
+                                                    {{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ horario.get_materia_nombre() }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ horario.get_materia_codigo() }}</span>
+                                            </td>
+                                            <td>
+                                                {% if horario.aula %}
+                                                    <span class="badge bg-info">{{ horario.aula }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">Sin asignar</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">{{ horario.get_turno_display() }}</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Verificar si no hay horarios -->
+                                {% set total_horarios = horarios_por_dia.values() | sum(attribute='__len__') | int %}
+                                {% if total_horarios == 0 %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                                        <h5>No tienes horarios asignados</h5>
+                                        <p>Contacta al administrador o jefe de carrera para que te asignen materias.</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-calendar-times fa-4x mb-3"></i>
+                        <h4>No tienes horarios asignados</h4>
+                        <p>Contacta al administrador o jefe de carrera para que te asignen materias y horarios.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información adicional -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Información de Contacto
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Para dudas sobre horarios:</strong></p>
+                        <p class="text-muted">Contacta al jefe de carrera o administrador del sistema.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Última actualización:</strong></p>
+                        <p class="text-muted">Los horarios se actualizan periódicamente según las necesidades académicas.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Resaltar la hora actual si es un día de clase
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+    
+    // Resaltar filas de horarios actuales
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+        const timeCell = row.querySelector('td:nth-child(2) .badge');
+        if (timeCell) {
+            const timeText = timeCell.textContent.trim();
+            const times = timeText.split(' - ');
+            if (times.length === 2) {
+                const startTime = parseTime(times[0]);
+                const endTime = parseTime(times[1]);
+                
+                if (currentTime >= startTime && currentTime <= endTime) {
+                    row.classList.add('table-warning');
+                    row.style.fontWeight = 'bold';
+                }
+            }
+        }
+    });
+    
+    function parseTime(timeStr) {
+        const parts = timeStr.split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+});
+</script>
+{% endblock %}
