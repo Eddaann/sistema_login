@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SelectField, SubmitField, IntegerField, TimeField, TextAreaField, BooleanField
+from wtforms import StringField, PasswordField, SelectField, SelectMultipleField, SubmitField, IntegerField, TimeField, TextAreaField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, NumberRange, Optional
 from models import User, Horario, Carrera, Materia
 
@@ -59,7 +59,9 @@ class RegistrationForm(FlaskForm):
         ('profesor_asignatura', 'Profesor por Asignatura')
     ])
     
-    carrera = SelectField('Carrera', validators=[Optional()])
+    carrera = SelectMultipleField('Carrera', validators=[Optional()])
+    
+    otra_carrera = BooleanField('¿Estás inscrito en otra carrera además de la que seleccionaste?', validators=[Optional()])
     
     submit = SubmitField('Registrarse')
     
@@ -90,22 +92,23 @@ class RegistrationForm(FlaskForm):
     
     def validate_carrera(self, carrera):
         """Validar carrera si se seleccionó profesor o jefe de carrera como rol"""
-        if self.rol.data in ['profesor', 'jefe_carrera'] and not carrera.data:
+        if self.rol.data in ['profesor', 'jefe_carrera'] and (not carrera.data or len(carrera.data) == 0):
             if self.rol.data == 'profesor':
-                raise ValidationError('Los profesores deben seleccionar una carrera.')
+                raise ValidationError('Los profesores deben seleccionar al menos una carrera.')
             elif self.rol.data == 'jefe_carrera':
-                raise ValidationError('Los jefes de carrera deben seleccionar una carrera.')
+                raise ValidationError('Los jefes de carrera deben seleccionar al menos una carrera.')
         
-        # Validar que no haya otro jefe de carrera para la misma carrera
+        # Validar que no haya otro jefe de carrera para las carreras seleccionadas
         if self.rol.data == 'jefe_carrera' and carrera.data:
-            existing_jefe = User.query.filter(
-                User.rol == 'jefe_carrera',
-                User.carrera_id == int(carrera.data),
-                User.activo == True
-            ).first()
-            if existing_jefe:
-                carrera_obj = Carrera.query.get(int(carrera.data))
-                raise ValidationError(f'Ya existe un jefe de carrera para {carrera_obj.nombre if carrera_obj else "esta carrera"}. Contacte al administrador.')
+            for carrera_id in carrera.data:
+                existing_jefe = User.query.filter(
+                    User.rol == 'jefe_carrera',
+                    User.carreras.any(id=int(carrera_id)),
+                    User.activo == True
+                ).first()
+                if existing_jefe:
+                    carrera_obj = Carrera.query.get(int(carrera_id))
+                    raise ValidationError(f'Ya existe un jefe de carrera para {carrera_obj.nombre if carrera_obj else "esta carrera"}. Contacte al administrador.')
     
     def get_final_rol(self):
         """Obtener el rol final basado en la selección"""

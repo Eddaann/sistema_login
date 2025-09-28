@@ -6,6 +6,12 @@ import os
 
 db = SQLAlchemy()
 
+# Tabla intermedia para relación many-to-many entre usuarios y carreras
+user_carreras = db.Table('user_carreras',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('carrera_id', db.Integer, db.ForeignKey('carrera.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     """Modelo de usuario con diferentes roles"""
     id = db.Column(db.Integer, primary_key=True)
@@ -24,15 +30,14 @@ class User(UserMixin, db.Model):
     # Para profesores: especifica si es de tiempo completo o por asignatura
     tipo_profesor = db.Column(db.String(20))
     
-    # Relación con carrera (para profesores y jefes de carrera)
-    carrera_id = db.Column(db.Integer, db.ForeignKey('carrera.id'), nullable=True)
-    carrera = db.relationship('Carrera', foreign_keys=[carrera_id], backref=db.backref('usuarios', lazy=True))
+    # Relación many-to-many con carreras (para profesores y jefes de carrera)
+    carreras = db.relationship('Carrera', secondary=user_carreras, backref=db.backref('usuarios', lazy=True))
     
     # Campos adicionales
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     activo = db.Column(db.Boolean, default=True)
     
-    def __init__(self, username, email, password, nombre, apellido, rol, telefono=None, tipo_profesor=None, carrera_id=None, imagen_perfil=None):
+    def __init__(self, username, email, password, nombre, apellido, rol, telefono=None, tipo_profesor=None, carreras=None, imagen_perfil=None):
         self.username = username
         self.email = email
         self.set_password(password)
@@ -41,7 +46,8 @@ class User(UserMixin, db.Model):
         self.rol = rol
         self.telefono = telefono
         self.tipo_profesor = tipo_profesor
-        self.carrera_id = carrera_id
+        if carreras:
+            self.carreras = carreras
         self.imagen_perfil = imagen_perfil
     
     def set_password(self, password):
@@ -93,12 +99,22 @@ class User(UserMixin, db.Model):
         return None  # Retornar None para usar ícono por defecto
     
     def get_carrera_nombre(self):
-        """Obtener nombre de la carrera"""
-        return self.carrera.nombre if self.carrera else 'Sin carrera asignada'
+        """Obtener nombre de la(s) carrera(s)"""
+        if not self.carreras:
+            return 'Sin carrera asignada'
+        if len(self.carreras) == 1:
+            return self.carreras[0].nombre
+        else:
+            return ', '.join([c.nombre for c in self.carreras])
     
     def get_carrera_codigo(self):
-        """Obtener código de la carrera"""
-        return self.carrera.codigo if self.carrera else 'N/A'
+        """Obtener código de la(s) carrera(s)"""
+        if not self.carreras:
+            return 'N/A'
+        if len(self.carreras) == 1:
+            return self.carreras[0].codigo
+        else:
+            return ', '.join([c.codigo for c in self.carreras])
     
     def get_info_completa(self):
         """Obtener información completa del profesor"""

@@ -83,10 +83,10 @@ def register():
             # Obtener el rol final (considerando tipo de profesor)
             rol_final = form.get_final_rol()
             
-            # Para profesores y jefes de carrera, obtener la carrera seleccionada
-            carrera_id = None
-            if rol_final in ['profesor_completo', 'profesor_asignatura', 'jefe_carrera']:
-                carrera_id = form.carrera.data
+            # Para profesores y jefes de carrera, obtener las carreras seleccionadas
+            carreras = []
+            if rol_final in ['profesor_completo', 'profesor_asignatura', 'jefe_carrera'] and form.carrera.data:
+                carreras = Carrera.query.filter(Carrera.id.in_(form.carrera.data)).all()
             
             # Crear nuevo usuario
             user = User(
@@ -97,7 +97,7 @@ def register():
                 apellido=form.apellido.data,
                 rol=rol_final,
                 telefono=form.telefono.data if form.telefono.data else None,
-                carrera_id=carrera_id
+                carreras=carreras
             )
             
             db.session.add(user)

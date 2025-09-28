@@ -115,10 +115,7 @@
 
                     <div class="mb-3" id="carreraDiv" style="display: none;">
                         {{ form.carrera.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-graduation-cap"></i>
-                            </span>
+                        <div id="carreraContainer">
                             {{ form.carrera(class="form-select") }}
                         </div>
                         {% if form.carrera.errors %}
@@ -126,6 +123,22 @@
                                 <div class="text-danger small">{{ error }}</div>
                             {% endfor %}
                         {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="otraCarreraDiv" style="display: none;">
+                        <div class="form-check">
+                            {{ form.otra_carrera(class="form-check-input") }}
+                            {{ form.otra_carrera.label(class="form-check-label") }}
+                        </div>
+                        {% if form.otra_carrera.errors %}
+                            {% for error in form.otra_carrera.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div id="mensajeOtraCarrera" style="display: none;" class="alert alert-info mt-2">
+                        <small>Selecciona todas las carreras a las que perteneces marcando las casillas correspondientes.</small>
                     </div>
 
                     <div class="row">
@@ -184,22 +197,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const rolSelect = document.getElementById('rolSelect');
     const tipoProfesorDiv = document.getElementById('tipoProfesorDiv');
     const carreraDiv = document.getElementById('carreraDiv');
+    const otraCarreraDiv = document.getElementById('otraCarreraDiv');
+    
+    // Guardar el HTML original del container de carrera
+    const carreraContainerOriginal = document.getElementById('carreraContainer').innerHTML;
+    const carreraSelect = document.getElementById('carrera');
+    const carreraOptions = Array.from(carreraSelect.options);
     
     function toggleTipoProfesor() {
         if (rolSelect.value === 'profesor') {
             tipoProfesorDiv.style.display = 'block';
             carreraDiv.style.display = 'block';
+            otraCarreraDiv.style.display = 'block';
             document.getElementById('tipo_profesor').required = true;
             document.getElementById('carrera').required = true;
         } else if (rolSelect.value === 'jefe_carrera') {
             tipoProfesorDiv.style.display = 'none';
             carreraDiv.style.display = 'block';
+            otraCarreraDiv.style.display = 'none';
             document.getElementById('tipo_profesor').required = false;
             document.getElementById('carrera').required = true;
             document.getElementById('tipo_profesor').value = '';
         } else {
             tipoProfesorDiv.style.display = 'none';
             carreraDiv.style.display = 'none';
+            otraCarreraDiv.style.display = 'none';
             document.getElementById('tipo_profesor').required = false;
             document.getElementById('carrera').required = false;
             document.getElementById('tipo_profesor').value = '';
@@ -212,6 +234,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Escuchar cambios en el rol
     rolSelect.addEventListener('change', toggleTipoProfesor);
+    
+    // Lógica para el mensaje de otra carrera
+    const otraCarreraCheckbox = document.getElementById('otra_carrera');
+    
+    function generateCheckboxes() {
+        const container = document.getElementById('carreraContainer');
+        container.innerHTML = '';
+        
+        // Crear checkboxes
+        carreraOptions.forEach(option => {
+            if (option.value) { // skip empty option
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = 'form-check-input';
+                input.name = 'carrera';
+                input.value = option.value;
+                input.id = 'carrera_' + option.value;
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = input.id;
+                label.textContent = option.textContent;
+                div.appendChild(input);
+                div.appendChild(label);
+                container.appendChild(div);
+            }
+        });
+    }
+    
+    function removeCheckboxes() {
+        const container = document.getElementById('carreraContainer');
+        container.innerHTML = carreraContainerOriginal;
+    }
+    
+    function toggleMensajeOtraCarrera() {
+        if (otraCarreraCheckbox.checked) {
+            generateCheckboxes();
+            document.getElementById('mensajeOtraCarrera').style.display = 'block';
+        } else {
+            removeCheckboxes();
+            document.getElementById('mensajeOtraCarrera').style.display = 'none';
+        }
+    }
+    
+    // Escuchar cambios en el checkbox
+    otraCarreraCheckbox.addEventListener('change', toggleMensajeOtraCarrera);
 });
 </script>
 {% endblock %}
