@@ -193,7 +193,7 @@
                                     <i class="fas fa-chalkboard-teacher fa-2x text-primary mb-2"></i>
                                     <h6>Gestión de Profesores</h6>
                                     <p class="small text-muted">Administrar profesores de la carrera</p>
-                                    <button class="btn btn-primary btn-sm">Gestionar</button>
+                                    <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-primary btn-sm">Gestionar</a>
                                 </div>
                             </div>
                         </div>
@@ -203,7 +203,7 @@
                                     <i class="fas fa-book fa-2x text-success mb-2"></i>
                                     <h6>Plan de Estudios</h6>
                                     <p class="small text-muted">Revisar y modificar plan de estudios</p>
-                                    <button class="btn btn-success btn-sm">Ver Plan</button>
+                                    <a href="{{ url_for('gestionar_materias_jefe') }}" class="btn btn-success btn-sm">Ver Plan</a>
                                 </div>
                             </div>
                         </div>
@@ -211,21 +211,12 @@
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <i class="fas fa-calendar-alt fa-2x text-warning mb-2"></i>
-                                    <h6>Horarios</h6>
+                                    <h6>Horarios Académicos</h6>
                                     <p class="small text-muted">Gestionar horarios de clases</p>
-                                    <button class="btn btn-warning btn-sm">Horarios</button>
+                                    <a href="{{ url_for('gestionar_horarios_academicos_jefe') }}" class="btn btn-warning btn-sm">Horarios</a>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-info">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-chart-bar fa-2x text-info mb-2"></i>
-                                    <h6>Reportes Académicos</h6>
-                                    <p class="small text-muted">Ver reportes de la carrera</p>
-                                    <button class="btn btn-info btn-sm">Ver Reportes</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 {% elif current_user.is_profesor() %}

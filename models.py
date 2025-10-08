@@ -33,11 +33,15 @@ class User(UserMixin, db.Model):
     # Relación many-to-many con carreras (para profesores y jefes de carrera)
     carreras = db.relationship('Carrera', secondary=user_carreras, backref=db.backref('usuarios', lazy=True))
     
+    # Campo específico para jefes de carrera (una carrera asignada)
+    carrera_id = db.Column(db.Integer, db.ForeignKey('carrera.id'))
+    carrera = db.relationship('Carrera', foreign_keys=[carrera_id], backref=db.backref('jefe_carrera', uselist=False))
+    
     # Campos adicionales
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     activo = db.Column(db.Boolean, default=True)
     
-    def __init__(self, username, email, password, nombre, apellido, rol, telefono=None, tipo_profesor=None, carreras=None, imagen_perfil=None):
+    def __init__(self, username, email, password, nombre, apellido, rol, telefono=None, tipo_profesor=None, carreras=None, imagen_perfil=None, carrera_id=None):
         self.username = username
         self.email = email
         self.set_password(password)
@@ -49,6 +53,7 @@ class User(UserMixin, db.Model):
         if carreras:
             self.carreras = carreras
         self.imagen_perfil = imagen_perfil
+        self.carrera_id = carrera_id
     
     def set_password(self, password):
         """Establecer contraseña hasheada"""
@@ -141,11 +146,20 @@ class User(UserMixin, db.Model):
         """Obtener profesores de la carrera del jefe (solo para jefes de carrera)"""
         if not self.is_jefe_carrera() or not self.carrera_id:
             return []
-        return User.query.filter(
-            User.carrera_id == self.carrera_id,
+        # Incluir tanto profesores asignados a la carrera como jefes de carrera
+        profesores = User.query.filter(
+            User.carreras.any(id=self.carrera_id),
             User.rol.in_(['profesor_completo', 'profesor_asignatura']),
             User.activo == True
         ).all()
+        
+        jefes = User.query.filter(
+            User.carrera_id == self.carrera_id,
+            User.rol == 'jefe_carrera',
+            User.activo == True
+        ).all()
+        
+        return profesores + jefes
     
     def get_materias_carrera(self):
         """Obtener materias de la carrera del jefe (solo para jefes de carrera)"""
@@ -162,8 +176,11 @@ class User(UserMixin, db.Model):
         if not self.is_jefe_carrera() or not self.carrera_id:
             return []
         from models import HorarioAcademico
+        # Para profesores: usar relación many-to-many
         return HorarioAcademico.query.join(User, HorarioAcademico.profesor_id == User.id).filter(
-            User.carrera_id == self.carrera_id
+            User.carreras.any(id=self.carrera_id),
+            User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+            User.activo == True
         ).all()
     
     def __repr__(self):
@@ -244,16 +261,26 @@ class Carrera(db.Model):
     
     def get_profesores_count(self):
         """Obtener cantidad de profesores en esta carrera"""
-        return User.query.filter(
-            User.carrera_id == self.id,
+        # Para profesores: usar relación many-to-many
+        profesores_many_to_many = User.query.filter(
+            User.carreras.any(id=self.id),
             User.rol.in_(['profesor_completo', 'profesor_asignatura']),
             User.activo == True
         ).count()
+        
+        # Para jefes de carrera asignados a esta carrera: usar carrera_id
+        jefes_carrera = User.query.filter(
+            User.carrera_id == self.id,
+            User.rol == 'jefe_carrera',
+            User.activo == True
+        ).count()
+        
+        return profesores_many_to_many + jefes_carrera
     
     def get_profesores_completos_count(self):
         """Obtener cantidad de profesores de tiempo completo"""
         return User.query.filter(
-            User.carrera_id == self.id,
+            User.carreras.any(id=self.id),
             User.rol == 'profesor_completo',
             User.activo == True
         ).count()
@@ -261,7 +288,7 @@ class Carrera(db.Model):
     def get_profesores_asignatura_count(self):
         """Obtener cantidad de profesores por asignatura"""
         return User.query.filter(
-            User.carrera_id == self.id,
+            User.carreras.any(id=self.id),
             User.rol == 'profesor_asignatura',
             User.activo == True
         ).count()

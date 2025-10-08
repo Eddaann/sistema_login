@@ -12,8 +12,8 @@
                         <i class="fas fa-book"></i> Materias de {{ carrera.nombre }}
                     </h3>
                     <div class="card-tools">
-                        <a href="{{ url_for('jefe_carrera_panel') }}" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-arrow-left"></i> Volver al Panel
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
                         </a>
                     </div>
                 </div>
@@ -36,7 +36,7 @@
                                     {% for materia in materias %}
                                     <tr>
                                         <td>
-                                            <span class="badge badge-primary">{{ materia.codigo }}</span>
+                                            <span class="badge badge-dark">{{ materia.codigo }}</span>
                                         </td>
                                         <td>{{ materia.nombre }}</td>
                                         <td>{{ materia.get_cuatrimestre_display() }}</td>

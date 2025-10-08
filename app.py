@@ -85,8 +85,11 @@ def register():
             
             # Para profesores y jefes de carrera, obtener las carreras seleccionadas
             carreras = []
+            carrera_id = None
             if rol_final in ['profesor_completo', 'profesor_asignatura', 'jefe_carrera'] and form.carrera.data:
                 carreras = Carrera.query.filter(Carrera.id.in_(form.carrera.data)).all()
+                if rol_final == 'jefe_carrera' and carreras:
+                    carrera_id = carreras[0].id
             
             # Crear nuevo usuario
             user = User(
@@ -97,7 +100,8 @@ def register():
                 apellido=form.apellido.data,
                 rol=rol_final,
                 telefono=form.telefono.data if form.telefono.data else None,
-                carreras=carreras
+                carreras=carreras,
+                carrera_id=carrera_id
             )
             
             db.session.add(user)
@@ -155,29 +159,29 @@ def admin_panel():
     users = User.query.all()
     return render_template('admin/panel.html', users=users)
 
-@app.route('/jefe-carrera')
-@login_required
-def jefe_carrera_panel():
-    """Panel para jefes de carrera"""
-    if not current_user.is_jefe_carrera():
-        flash('No tienes permisos para acceder a esta página.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    # Verificar que el jefe tenga una carrera asignada
-    if not current_user.carrera_id:
-        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
-        return redirect(url_for('dashboard'))
-    
-    # Obtener datos específicos de la carrera del jefe
-    profesores = current_user.get_profesores_carrera()
-    materias = current_user.get_materias_carrera()
-    horarios_academicos = current_user.get_horarios_academicos_carrera()
-    
-    return render_template('jefe/panel.html', 
-                         profesores=profesores, 
-                         materias=materias,
-                         horarios_academicos=horarios_academicos,
-                         carrera=current_user.carrera)
+# @app.route('/jefe-carrera')
+# @login_required
+# def jefe_carrera_panel():
+#     """Panel para jefes de carrera"""
+#     if not current_user.is_jefe_carrera():
+#         flash('No tienes permisos para acceder a esta página.', 'error')
+#         return redirect(url_for('dashboard'))
+#     
+#     # Verificar que el jefe tenga una carrera asignada
+#     if not current_user.carrera_id:
+#         flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+#         return redirect(url_for('dashboard'))
+#     
+#     # Obtener datos específicos de la carrera del jefe
+#     profesores = current_user.get_profesores_carrera()
+#     materias = current_user.get_materias_carrera()
+#     horarios_academicos = current_user.get_horarios_academicos_carrera()
+#     
+#     return render_template('jefe/panel.html', 
+#                          profesores=profesores, 
+#                          materias=materias,
+#                          horarios_academicos=horarios_academicos,
+#                          carrera=current_user.carrera)
 
 # ==========================================
 # GESTIÓN DE PROFESORES PARA JEFES DE CARRERA
@@ -209,9 +213,16 @@ def editar_profesor_jefe(id):
     profesor = User.query.get_or_404(id)
     
     # Verificar que el profesor pertenezca a la carrera del jefe
-    if not current_user.puede_acceder_carrera(profesor.carrera_id):
-        flash('No tienes permisos para editar este profesor.', 'error')
-        return redirect(url_for('gestionar_profesores_jefe'))
+    # Para profesores: verificar si está asignado a la carrera del jefe
+    if profesor.is_profesor():
+        if not any(carrera.id == current_user.carrera_id for carrera in profesor.carreras):
+            flash('No tienes permisos para editar este profesor.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
+    # Para jefes de carrera: verificar que sea de la misma carrera
+    elif profesor.is_jefe_carrera():
+        if profesor.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para editar este jefe de carrera.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
     
     form = EditarUsuarioForm()
     if form.validate_on_submit():
@@ -247,9 +258,16 @@ def eliminar_profesor_jefe(id):
     profesor = User.query.get_or_404(id)
     
     # Verificar que el profesor pertenezca a la carrera del jefe
-    if not current_user.puede_acceder_carrera(profesor.carrera_id):
-        flash('No tienes permisos para eliminar este profesor.', 'error')
-        return redirect(url_for('gestionar_profesores_jefe'))
+    # Para profesores: verificar si está asignado a la carrera del jefe
+    if profesor.is_profesor():
+        if not any(carrera.id == current_user.carrera_id for carrera in profesor.carreras):
+            flash('No tienes permisos para eliminar este profesor.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
+    # Para jefes de carrera: verificar que sea de la misma carrera
+    elif profesor.is_jefe_carrera():
+        if profesor.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para eliminar este jefe de carrera.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
     
     # Desactivar en lugar de eliminar
     profesor.activo = False
@@ -349,7 +367,16 @@ def editar_horario_academico_jefe(id):
     horario_academico = HorarioAcademico.query.get_or_404(id)
     
     # Verificar que el horario pertenezca a la carrera del jefe
-    if not current_user.puede_acceder_carrera(horario_academico.profesor.carrera_id):
+    # Verificar si el profesor del horario está asignado a la carrera del jefe
+    profesor = horario_academico.profesor
+    if profesor.is_profesor():
+        if not any(carrera.id == current_user.carrera_id for carrera in profesor.carreras):
+            flash('No tienes permisos para editar este horario académico.', 'error')
+            return redirect(url_for('gestionar_horarios_academicos_jefe'))
+    elif profesor.is_jefe_carrera():
+        if profesor.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para editar este horario académico.', 'error')
+            return redirect(url_for('gestionar_horarios_academicos_jefe'))
         flash('No tienes permisos para editar este horario académico.', 'error')
         return redirect(url_for('gestionar_horarios_academicos_jefe'))
     
