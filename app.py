@@ -292,8 +292,40 @@ def gestionar_materias_jefe():
         flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
         return redirect(url_for('dashboard'))
     
-    materias = current_user.get_materias_carrera()
-    return render_template('jefe/materias.html', materias=materias, carrera=current_user.carrera)
+    # Obtener filtros
+    ciclo_str = request.args.get('ciclo', type=str)
+    ciclo = int(ciclo_str) if ciclo_str and ciclo_str != '' else None
+    cuatrimestre_str = request.args.get('cuatrimestre', type=str)
+    cuatrimestre = int(cuatrimestre_str) if cuatrimestre_str and cuatrimestre_str != '' else None
+    
+    # Query base para materias de la carrera
+    query = Materia.query.filter(
+        Materia.carrera_id == current_user.carrera_id,
+        Materia.activa == True
+    )
+    
+    # Filtro por ciclo escolar
+    if ciclo:
+        if ciclo == 1:
+            query = query.filter(Materia.cuatrimestre % 3 == 1)
+        elif ciclo == 2:
+            query = query.filter(Materia.cuatrimestre % 3 == 2)
+        elif ciclo == 3:
+            query = query.filter(Materia.cuatrimestre % 3 == 0)
+    
+    # Filtro por cuatrimestre específico
+    if cuatrimestre is not None:
+        query = query.filter(Materia.cuatrimestre == cuatrimestre)
+    
+    materias = query.order_by(Materia.cuatrimestre, Materia.nombre).all()
+    
+    return render_template('jefe/materias.html', 
+                         materias=materias, 
+                         carrera=current_user.carrera,
+                         filtros_activos={
+                             'ciclo': ciclo,
+                             'cuatrimestre': cuatrimestre
+                         })
 
 @app.route('/jefe-carrera/materia/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -776,6 +808,8 @@ def gestionar_materias():
     # Obtener filtros
     carrera_id_str = request.args.get('carrera', type=str)
     carrera_id = int(carrera_id_str) if carrera_id_str and carrera_id_str != '0' else None
+    ciclo_str = request.args.get('ciclo', type=str)
+    ciclo = int(ciclo_str) if ciclo_str and ciclo_str != '' else None
     cuatrimestre_str = request.args.get('cuatrimestre', type=str)
     cuatrimestre = int(cuatrimestre_str) if cuatrimestre_str and cuatrimestre_str != '' else None
     busqueda = request.args.get('busqueda', '').strip()
@@ -787,7 +821,19 @@ def gestionar_materias():
     if carrera_id:
         query = query.filter(Materia.carrera_id == carrera_id)
     
-    if cuatrimestre:
+    # Filtro por ciclo escolar
+    if ciclo:
+        # Ciclo 1: cuatrimestres 1, 4, 7, 10 (cuatrimestre % 3 == 1)
+        # Ciclo 2: cuatrimestres 2, 5, 8 (cuatrimestre % 3 == 2)
+        # Ciclo 3: cuatrimestres 0, 3, 6, 9 (cuatrimestre % 3 == 0)
+        if ciclo == 1:
+            query = query.filter(Materia.cuatrimestre % 3 == 1)
+        elif ciclo == 2:
+            query = query.filter(Materia.cuatrimestre % 3 == 2)
+        elif ciclo == 3:
+            query = query.filter(Materia.cuatrimestre % 3 == 0)
+    
+    if cuatrimestre is not None:
         query = query.filter(Materia.cuatrimestre == cuatrimestre)
     
     if busqueda:
@@ -819,6 +865,9 @@ def gestionar_materias():
     else:
         filtrar_form.carrera.data = 0  # Todas las carreras por defecto
     
+    if ciclo is not None:
+        filtrar_form.ciclo.data = str(ciclo)
+    
     if cuatrimestre is not None:
         filtrar_form.cuatrimestre.data = str(cuatrimestre)
     
@@ -835,6 +884,7 @@ def gestionar_materias():
                          cuatrimestres_unicos=cuatrimestres_unicos,
                          filtros_activos={
                              'carrera': carrera_id,
+                             'ciclo': ciclo,
                              'cuatrimestre': cuatrimestre,
                              'busqueda': busqueda
                          })
@@ -1023,16 +1073,13 @@ def descargar_plantilla_csv_materias():
         return redirect(url_for('dashboard'))
     
     try:
-        # Crear contenido CSV con encabezados y ejemplo
+        # Crear contenido CSV solo con encabezados (sin ejemplos)
         contenido_csv = """nombre,codigo,cuatrimestre,carrera_codigo,creditos,horas_teoricas,horas_practicas,descripcion
-Introducción a la Programación,ISI-101,1,ING-SIS,4,3,2,Fundamentos de programación
-Matemáticas Discretas,MAT-101,1,ING-SIS,3,3,0,Lógica y matemáticas básicas
-Estructuras de Datos,ISI-201,2,ING-SIS,4,3,2,Algoritmos y estructuras de datos
-Anatomía Humana,MED-101,1,MED,5,4,2,Estudio del cuerpo humano"""
+"""
         
         # Crear respuesta con archivo CSV
         response = make_response(contenido_csv)
-        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
         response.headers['Content-Disposition'] = 'attachment; filename=plantilla_materias.csv'
         
         return response
@@ -1359,6 +1406,19 @@ def generar_horarios_academicos():
 
     if form.validate_on_submit():
         from generador_horarios import generar_horarios_automaticos
+        from datetime import datetime
+
+        # Calcular período académico basado en el ciclo
+        año_actual = datetime.now().year
+        ciclo = int(form.ciclo.data)
+        
+        # Definir período según ciclo escolar
+        if ciclo == 1:  # Ciclo 1: cuatrimestres 1,4,7,10
+            periodo_academico = f"{año_actual} - {año_actual}"
+        elif ciclo == 2:  # Ciclo 2: cuatrimestres 2,5,8
+            periodo_academico = f"{año_actual} - {año_actual}"
+        else:  # Ciclo 3: cuatrimestres 0,3,6,9
+            periodo_academico = f"{año_actual} - {año_actual + 1}"
 
         # Preparar días de la semana
         dias_semana = []
@@ -1386,7 +1446,7 @@ def generar_horarios_academicos():
             cuatrimestre=int(form.cuatrimestre.data),
             turno=form.turno.data,
             dias_semana=dias_semana,
-            periodo_academico=form.periodo_academico.data,
+            periodo_academico=periodo_academico,
             creado_por=current_user.id
         )
 
@@ -1426,7 +1486,7 @@ def editar_horario_academico(id):
         horario_academico.horario_id = int(form.horario_id.data)
         horario_academico.dia_semana = form.dia_semana.data
         horario_academico.aula = form.aula.data
-        horario_academico.periodo_academico = form.periodo_academico.data
+        # El periodo_academico se calcula automáticamente en el modelo
 
         db.session.commit()
         flash('Horario académico actualizado exitosamente.', 'success')
@@ -1437,7 +1497,6 @@ def editar_horario_academico(id):
     form.horario_id.data = str(horario_academico.horario_id)
     form.dia_semana.data = horario_academico.dia_semana
     form.aula.data = horario_academico.aula
-    form.periodo_academico.data = horario_academico.periodo_academico
 
     return render_template('admin/editar_horario_academico.html',
                          form=form,

@@ -28,6 +28,7 @@
                                         <th>Día</th>
                                         <th>Horario</th>
                                         <th>Aula</th>
+                                        <th>Ciclo Escolar</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
@@ -58,6 +59,11 @@
                                             </small>
                                         </td>
                                         <td>{{ horario.aula or 'No asignada' }}</td>
+                                        <td>
+                                            <span class="badge badge-info">{{ horario.get_periodo_academico_display() }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ horario.get_ciclo_escolar()['nombre'] }}</small>
+                                        </td>
                                         <td>
                                             <a href="{{ url_for('editar_horario_academico_jefe', id=horario.id) }}" 
                                                class="btn btn-sm btn-primary" title="Editar">

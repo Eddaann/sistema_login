@@ -458,6 +458,33 @@ class Materia(db.Model):
         """Obtener nombre del cuatrimestre para mostrar"""
         return f"Cuatrimestre {self.cuatrimestre}"
     
+    def get_ciclo_escolar(self):
+        """Obtener el ciclo escolar basado en el cuatrimestre y año actual"""
+        from datetime import datetime
+        año_actual = datetime.now().year
+        
+        # Ciclo 1: Cuatrimestres 1, 4, 7, 10 -> Año actual - Año actual
+        # Ciclo 2: Cuatrimestres 2, 5, 8 -> Año actual - Año actual
+        # Ciclo 3: Cuatrimestres 0, 3, 6, 9 -> Año actual - Año siguiente
+        
+        cuatrimestre_mod = self.cuatrimestre % 3
+        
+        if cuatrimestre_mod == 1:  # Cuatrimestres 1, 4, 7, 10
+            ciclo = f"{año_actual} - {año_actual}"
+            numero_ciclo = 1
+        elif cuatrimestre_mod == 2:  # Cuatrimestres 2, 5, 8
+            ciclo = f"{año_actual} - {año_actual}"
+            numero_ciclo = 2
+        else:  # cuatrimestre_mod == 0 -> Cuatrimestres 0, 3, 6, 9
+            ciclo = f"{año_actual} - {año_actual + 1}"
+            numero_ciclo = 3
+        
+        return {
+            'ciclo': ciclo,
+            'numero': numero_ciclo,
+            'nombre': f"Ciclo {numero_ciclo}"
+        }
+    
     def get_carrera_nombre(self):
         """Obtener nombre de la carrera"""
         return self.carrera.nombre if self.carrera else 'Carrera no encontrada'
@@ -481,7 +508,7 @@ class HorarioAcademico(db.Model):
     # Información adicional
     dia_semana = db.Column(db.String(10), nullable=False)  # 'lunes', 'martes', etc.
     aula = db.Column(db.String(20))  # Ej: "A101", "Lab1", etc.
-    periodo_academico = db.Column(db.String(20), default='2025-1')  # Ej: "2025-1", "2025-2"
+    periodo_academico = db.Column(db.String(20))  # Ej: "2025 - 2025", "2025 - 2026"
     
     # Metadatos
     activo = db.Column(db.Boolean, default=True)
@@ -495,13 +522,24 @@ class HorarioAcademico(db.Model):
     creador = db.relationship('User', foreign_keys=[creado_por], backref=db.backref('horarios_creados_academicos', lazy=True))
     
     def __init__(self, profesor_id, materia_id, horario_id, dia_semana, aula=None, 
-                 periodo_academico='2025-1', creado_por=None):
+                 periodo_academico=None, creado_por=None):
         self.profesor_id = profesor_id
         self.materia_id = materia_id
         self.horario_id = horario_id
         self.dia_semana = dia_semana.lower()
         self.aula = aula
-        self.periodo_academico = periodo_academico
+        # Si no se proporciona periodo_academico, calcularlo basado en la materia
+        if periodo_academico is None and materia_id:
+            materia = Materia.query.get(materia_id)
+            if materia:
+                ciclo_info = materia.get_ciclo_escolar()
+                self.periodo_academico = ciclo_info['ciclo']
+            else:
+                from datetime import datetime
+                año_actual = datetime.now().year
+                self.periodo_academico = f"{año_actual} - {año_actual}"
+        else:
+            self.periodo_academico = periodo_academico or f"{datetime.now().year} - {datetime.now().year}"
         self.creado_por = creado_por
     
     def get_dia_display(self):
@@ -540,6 +578,20 @@ class HorarioAcademico(db.Model):
     def get_turno_display(self):
         """Obtener turno del horario"""
         return self.horario.get_turno_display() if self.horario else 'N/A'
+    
+    def get_ciclo_escolar(self):
+        """Obtener información del ciclo escolar de la materia"""
+        if self.materia:
+            return self.materia.get_ciclo_escolar()
+        return {
+            'ciclo': self.periodo_academico or 'N/A',
+            'numero': 0,
+            'nombre': 'Ciclo desconocido'
+        }
+    
+    def get_periodo_academico_display(self):
+        """Obtener periodo académico formateado"""
+        return self.periodo_academico or 'No especificado'
     
     def __repr__(self):
         return f'<HorarioAcademico {self.get_materia_codigo()} - {self.get_profesor_nombre()} - {self.get_dia_display()} {self.get_hora_inicio_str()}>'

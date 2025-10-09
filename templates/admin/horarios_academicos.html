@@ -178,7 +178,11 @@
                                                 <span class="text-muted">Sin asignar</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ horario.periodo_academico }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ horario.get_periodo_academico_display() }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ horario.get_ciclo_escolar()['nombre'] }}</small>
+                                        </td>
                                         <td>
                                             <div class="btn-group" role="group">
                                                 <a href="{{ url_for('editar_horario_academico', id=horario.id) }}"

@@ -39,7 +39,7 @@
 
                         <div class="row g-3">
                             <!-- Carrera -->
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <label for="carrera" class="form-label">Carrera <span class="text-danger">*</span></label>
                                 {{ form.carrera(class="form-select") }}
                                 {% if form.carrera.errors %}
@@ -51,10 +51,24 @@
                                 {% endif %}
                             </div>
 
+                            <!-- Ciclo Escolar -->
+                            <div class="col-md-6">
+                                <label for="ciclo" class="form-label">Ciclo Escolar <span class="text-danger">*</span></label>
+                                {{ form.ciclo(class="form-select", id="ciclo") }}
+                                {% if form.ciclo.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.ciclo.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="text-muted">El período académico se calculará automáticamente</small>
+                            </div>
+
                             <!-- Cuatrimestre -->
                             <div class="col-md-6">
                                 <label for="cuatrimestre" class="form-label">Cuatrimestre <span class="text-danger">*</span></label>
-                                {{ form.cuatrimestre(class="form-select") }}
+                                {{ form.cuatrimestre(class="form-select", id="cuatrimestre") }}
                                 {% if form.cuatrimestre.errors %}
                                     <div class="text-danger small">
                                         {% for error in form.cuatrimestre.errors %}
@@ -62,6 +76,7 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                                <small class="text-muted">Solo muestra cuatrimestres del ciclo seleccionado</small>
                             </div>
 
                             <!-- Turno -->
@@ -88,20 +103,6 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
-                            </div>
-
-                            <!-- Período académico -->
-                            <div class="col-md-6">
-                                <label for="periodo_academico" class="form-label">Período Académico <span class="text-danger">*</span></label>
-                                {{ form.periodo_academico(class="form-control") }}
-                                {% if form.periodo_academico.errors %}
-                                    <div class="text-danger small">
-                                        {% for error in form.periodo_academico.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <div class="form-text">Ejemplo: 2025-1, 2025-2</div>
                             </div>
                         </div>
 
@@ -252,7 +253,12 @@
                                         <strong>Materias Totales:</strong> {{ resultado.estadisticas.materias_totales }}
                                     </div>
                                     <div class="mb-0">
-                                        <strong>Período Académico:</strong> {{ form.periodo_academico.data or 'No especificado' }}
+                                        <strong>Ciclo Escolar:</strong> 
+                                        {% if form.ciclo.data == '1' %}Ciclo 1 (Cuatrimestres 1, 4, 7, 10)
+                                        {% elif form.ciclo.data == '2' %}Ciclo 2 (Cuatrimestres 2, 5, 8)
+                                        {% elif form.ciclo.data == '3' %}Ciclo 3 (Cuatrimestres 0, 3, 6, 9)
+                                        {% else %}No especificado
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -286,6 +292,71 @@ document.getElementById('dias_semana').addEventListener('change', function() {
         diasPersonalizados.style.display = 'block';
     } else {
         diasPersonalizados.style.display = 'none';
+    }
+});
+
+// Filtrar cuatrimestres según el ciclo seleccionado
+const cicloSelect = document.getElementById('ciclo');
+const cuatrimestreSelect = document.getElementById('cuatrimestre');
+
+// Mapeo de ciclos a cuatrimestres
+const ciclosCuatrimestres = {
+    '1': [1, 4, 7, 10],
+    '2': [2, 5, 8],
+    '3': [0, 3, 6, 9]
+};
+
+// Guardar todas las opciones originales de cuatrimestre
+const todasLasOpciones = Array.from(cuatrimestreSelect.options).map(option => ({
+    value: option.value,
+    text: option.text
+}));
+
+function filtrarCuatrimestres() {
+    const cicloSeleccionado = cicloSelect.value;
+    const valorActual = cuatrimestreSelect.value;
+    
+    // Limpiar el select
+    cuatrimestreSelect.innerHTML = '<option value="">Seleccione un cuatrimestre</option>';
+    
+    if (cicloSeleccionado && ciclosCuatrimestres[cicloSeleccionado]) {
+        const cuatrimestresPermitidos = ciclosCuatrimestres[cicloSeleccionado];
+        
+        // Agregar solo las opciones correspondientes al ciclo
+        todasLasOpciones.forEach(option => {
+            if (option.value && cuatrimestresPermitidos.includes(parseInt(option.value))) {
+                const newOption = new Option(option.text, option.value);
+                cuatrimestreSelect.add(newOption);
+                
+                // Restaurar valor si estaba seleccionado y es válido
+                if (option.value === valorActual) {
+                    cuatrimestreSelect.value = valorActual;
+                }
+            }
+        });
+    } else {
+        // Si no hay ciclo seleccionado, mostrar todas las opciones
+        todasLasOpciones.forEach(option => {
+            if (option.value) {
+                const newOption = new Option(option.text, option.value);
+                cuatrimestreSelect.add(newOption);
+            }
+        });
+        
+        // Restaurar valor si estaba seleccionado
+        if (valorActual) {
+            cuatrimestreSelect.value = valorActual;
+        }
+    }
+}
+
+// Ejecutar al cambiar el ciclo
+cicloSelect.addEventListener('change', filtrarCuatrimestres);
+
+// Ejecutar al cargar la página si ya hay un ciclo seleccionado
+document.addEventListener('DOMContentLoaded', function() {
+    if (cicloSelect.value) {
+        filtrarCuatrimestres();
     }
 });
 </script>

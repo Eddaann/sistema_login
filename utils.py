@@ -14,7 +14,7 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
     Procesar archivo CSV/Excel con datos de profesores
     
     Formato esperado del archivo:
-    - nombre, apellido, email, telefono, tipo_profesor, carrera_codigo (opcional)
+    - nombre, apellido_paterno, apellido_materno, email, telefono, tipo_profesor, carrera_codigo (opcional)
     """
     resultados = {
         'exitosos': [],
@@ -25,16 +25,29 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
     try:
         # Leer archivo según extensión
         if archivo.filename.endswith('.csv'):
-            df = pd.read_csv(archivo)
+            # Intentar leer con diferentes codificaciones
+            try:
+                df = pd.read_csv(archivo, encoding='utf-8')
+            except UnicodeDecodeError:
+                archivo.seek(0)
+                try:
+                    df = pd.read_csv(archivo, encoding='latin-1')
+                except:
+                    archivo.seek(0)
+                    df = pd.read_csv(archivo, encoding='iso-8859-1')
         else:  # Excel
             df = pd.read_excel(archivo)
         
+        # Limpiar nombres de columnas (eliminar espacios y convertir a minúsculas)
+        df.columns = df.columns.str.strip().str.lower()
+        
         # Validar columnas requeridas
-        columnas_requeridas = ['nombre', 'apellido', 'email', 'tipo_profesor']
+        columnas_requeridas = ['nombre', 'apellido_paterno', 'apellido_materno', 'email', 'tipo_profesor']
         columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
         
         if columnas_faltantes:
-            resultados['errores'].append(f"Columnas faltantes: {', '.join(columnas_faltantes)}")
+            columnas_encontradas = ', '.join(df.columns.tolist())
+            resultados['errores'].append(f"Columnas faltantes: {', '.join(columnas_faltantes)}. Columnas encontradas: {columnas_encontradas}")
             return resultados
         
         # Procesar cada fila
@@ -43,14 +56,14 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                 resultados['total_procesados'] += 1
                 
                 # Validar datos básicos
-                if pd.isna(row['nombre']) or pd.isna(row['apellido']) or pd.isna(row['email']):
-                    resultados['errores'].append(f"Fila {index + 2}: Datos básicos incompletos")
+                if pd.isna(row['nombre']) or pd.isna(row['apellido_paterno']) or pd.isna(row['apellido_materno']) or pd.isna(row['email']):
+                    resultados['errores'].append(f"Fila {index + 2}: Datos básicos incompletos (nombre, apellido_paterno, apellido_materno o email vacío)")
                     continue
                 
                 # Validar tipo de profesor
                 tipo_profesor = str(row['tipo_profesor']).lower().strip()
                 if tipo_profesor not in ['profesor_completo', 'profesor_asignatura', 'tiempo completo', 'asignatura']:
-                    resultados['errores'].append(f"Fila {index + 2}: Tipo de profesor inválido")
+                    resultados['errores'].append(f"Fila {index + 2}: Tipo de profesor inválido (debe ser: profesor_completo, profesor_asignatura, tiempo completo o asignatura)")
                     continue
                 
                 # Normalizar tipo de profesor
@@ -59,16 +72,34 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                 elif tipo_profesor in ['asignatura']:
                     tipo_profesor = 'profesor_asignatura'
                 
-                # Determinar carrera
-                carrera_id = carrera_defecto_id
+                # Determinar carrera(s)
+                carreras = []
                 if 'carrera_codigo' in df.columns and not pd.isna(row['carrera_codigo']):
-                    carrera = Carrera.query.filter_by(codigo=str(row['carrera_codigo']).upper().strip()).first()
+                    # Puede tener múltiples carreras separadas por coma
+                    codigos_carrera = str(row['carrera_codigo']).split(',')
+                    for codigo in codigos_carrera:
+                        carrera = Carrera.query.filter_by(codigo=codigo.upper().strip()).first()
+                        if carrera:
+                            carreras.append(carrera)
+                        else:
+                            resultados['errores'].append(f"Fila {index + 2}: Carrera con código '{codigo.strip()}' no encontrada")
+                elif carrera_defecto_id:
+                    carrera = Carrera.query.get(carrera_defecto_id)
                     if carrera:
-                        carrera_id = carrera.id
+                        carreras.append(carrera)
+                
+                if not carreras:
+                    resultados['errores'].append(f"Fila {index + 2}: No se pudo determinar la carrera (especifica carrera_codigo o selecciona carrera por defecto)")
+                    continue
+                
+                # Construir apellido completo
+                apellido_paterno = str(row['apellido_paterno']).strip().title()
+                apellido_materno = str(row['apellido_materno']).strip().title()
+                apellido_completo = f"{apellido_paterno} {apellido_materno}"
                 
                 # Generar username único
                 nombre_base = str(row['nombre']).lower().strip()
-                apellido_base = str(row['apellido']).lower().strip()
+                apellido_base = apellido_paterno.lower()
                 username_base = f"{nombre_base}.{apellido_base}".replace(' ', '')
                 username = username_base
                 contador = 1
@@ -79,7 +110,7 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                 
                 # Verificar si el email ya existe
                 if User.query.filter_by(email=str(row['email']).strip()).first():
-                    resultados['errores'].append(f"Fila {index + 2}: Email {row['email']} ya existe")
+                    resultados['errores'].append(f"Fila {index + 2}: Email {row['email']} ya existe en el sistema")
                     continue
                 
                 # Crear usuario
@@ -88,10 +119,10 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                     email=str(row['email']).strip(),
                     password='profesor123',  # Contraseña temporal
                     nombre=str(row['nombre']).strip().title(),
-                    apellido=str(row['apellido']).strip().title(),
+                    apellido=apellido_completo,
                     rol=tipo_profesor,
                     telefono=str(row['telefono']).strip() if 'telefono' in df.columns and not pd.isna(row['telefono']) else None,
-                    carrera_id=carrera_id
+                    carreras=carreras  # Asignar carreras (relación many-to-many)
                 )
                 
                 db.session.add(usuario)
@@ -100,7 +131,7 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                     'username': username,
                     'email': usuario.email,
                     'tipo': usuario.get_rol_display(),
-                    'carrera': usuario.get_carrera_nombre()
+                    'carreras': ', '.join([c.nombre for c in carreras])
                 })
                 
             except Exception as e:
@@ -110,6 +141,10 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
         if resultados['exitosos']:
             db.session.commit()
         
+    except pd.errors.EmptyDataError:
+        resultados['errores'].append('El archivo está vacío o no tiene datos válidos')
+    except pd.errors.ParserError:
+        resultados['errores'].append('Error al leer el archivo. Verifica que sea un CSV válido')
     except Exception as e:
         db.session.rollback()
         resultados['errores'].append(f"Error al leer archivo: {str(e)}")
@@ -260,25 +295,14 @@ def get_table_style():
     ])
 
 def generar_plantilla_csv():
-    """Generar archivo CSV de plantilla para importar profesores"""
-    data = {
-        'nombre': ['Juan', 'María', 'Carlos'],
-        'apellido': ['Pérez', 'González', 'Rodríguez'],
-        'email': ['juan.perez@universidad.edu', 'maria.gonzalez@universidad.edu', 'carlos.rodriguez@universidad.edu'],
-        'telefono': ['555-1234', '555-5678', '555-9012'],
-        'tipo_profesor': ['profesor_completo', 'profesor_asignatura', 'profesor_completo'],
-        'carrera_codigo': ['ING-SIS', 'MED', 'DER']
-    }
-    
-    df = pd.DataFrame(data)
+    """Generar archivo CSV de plantilla para importar profesores (solo encabezados)"""
+    # Solo crear encabezados sin datos de ejemplo
+    contenido_csv = "nombre,apellido_paterno,apellido_materno,email,telefono,tipo_profesor,carrera_codigo\n"
     
     # Crear response
-    output = io.StringIO()
-    df.to_csv(output, index=False, encoding='utf-8')
-    
-    response = make_response(output.getvalue())
+    response = make_response(contenido_csv)
     response.headers["Content-Disposition"] = "attachment; filename=plantilla_profesores.csv"
-    response.headers["Content-type"] = "text/csv"
+    response.headers["Content-type"] = "text/csv; charset=utf-8"
     
     return response
 
@@ -289,45 +313,62 @@ def procesar_archivo_materias(archivo, carrera_defecto_id=None):
     Formato esperado del archivo:
     - nombre, codigo, cuatrimestre, carrera_codigo (opcional), creditos, horas_teoricas, horas_practicas, descripcion
     """
-    resultados = {
-        'exitosos': [],
-        'errores': [],
-        'total_procesados': 0
+    resultado = {
+        'exito': False,
+        'mensaje': '',
+        'procesados': 0,
+        'creados': 0,
+        'actualizados': 0,
+        'errores': []
     }
     
     try:
         # Leer archivo según extensión
         if archivo.filename.endswith('.csv'):
-            df = pd.read_csv(archivo)
+            # Intentar leer con diferentes codificaciones
+            try:
+                df = pd.read_csv(archivo, encoding='utf-8')
+            except UnicodeDecodeError:
+                archivo.seek(0)  # Volver al inicio del archivo
+                try:
+                    df = pd.read_csv(archivo, encoding='latin-1')
+                except:
+                    archivo.seek(0)
+                    df = pd.read_csv(archivo, encoding='iso-8859-1')
         else:  # Excel
             df = pd.read_excel(archivo)
+        
+        # Limpiar nombres de columnas (eliminar espacios y convertir a minúsculas)
+        df.columns = df.columns.str.strip().str.lower()
         
         # Validar columnas requeridas
         columnas_requeridas = ['nombre', 'codigo', 'cuatrimestre']
         columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
         
         if columnas_faltantes:
-            resultados['errores'].append(f"Columnas faltantes: {', '.join(columnas_faltantes)}")
-            return resultados
+            # Mostrar las columnas que se encontraron para ayudar al usuario
+            columnas_encontradas = ', '.join(df.columns.tolist())
+            resultado['mensaje'] = f"Formato del archivo: El archivo debe contener las siguientes columnas obligatorias: {', '.join(columnas_requeridas)}. Las columnas opcionales son: carrera_codigo, creditos, horas_teoricas, horas_practicas, descripcion. Columnas encontradas en el archivo: {columnas_encontradas}"
+            return resultado
         
         # Procesar cada fila
         for index, row in df.iterrows():
             try:
-                resultados['total_procesados'] += 1
+                resultado['procesados'] += 1
                 
                 # Validar datos básicos
                 if pd.isna(row['nombre']) or pd.isna(row['codigo']) or pd.isna(row['cuatrimestre']):
-                    resultados['errores'].append(f"Fila {index + 2}: Datos básicos incompletos")
+                    resultado['errores'].append(f"Fila {index + 2}: Datos básicos incompletos (nombre, código o cuatrimestre vacío)")
                     continue
                 
                 # Validar cuatrimestre
                 try:
                     cuatrimestre = int(row['cuatrimestre'])
-                    if cuatrimestre < 1 or cuatrimestre > 12:
-                        resultados['errores'].append(f"Fila {index + 2}: Cuatrimestre debe estar entre 1 y 12")
+                    if cuatrimestre < 0 or cuatrimestre > 10:
+                        resultado['errores'].append(f"Fila {index + 2}: Cuatrimestre debe estar entre 0 y 10")
                         continue
                 except:
-                    resultados['errores'].append(f"Fila {index + 2}: Cuatrimestre inválido")
+                    resultado['errores'].append(f"Fila {index + 2}: Cuatrimestre inválido (debe ser un número)")
                     continue
                 
                 # Determinar carrera
@@ -337,58 +378,70 @@ def procesar_archivo_materias(archivo, carrera_defecto_id=None):
                     if carrera:
                         carrera_id = carrera.id
                     else:
-                        resultados['errores'].append(f"Fila {index + 2}: Carrera con código {row['carrera_codigo']} no encontrada")
+                        resultado['errores'].append(f"Fila {index + 2}: Carrera con código '{row['carrera_codigo']}' no encontrada en el sistema")
                         continue
                 
                 if not carrera_id:
-                    resultados['errores'].append(f"Fila {index + 2}: No se pudo determinar la carrera")
+                    resultado['errores'].append(f"Fila {index + 2}: No se pudo determinar la carrera (especifica carrera_codigo o selecciona carrera por defecto)")
                     continue
                 
-                # Verificar si el código ya existe
+                # Verificar si la materia ya existe (por código)
                 codigo = str(row['codigo']).upper().strip()
-                if Materia.query.filter_by(codigo=codigo, activa=True).first():
-                    resultados['errores'].append(f"Fila {index + 2}: Código {codigo} ya existe")
-                    continue
+                materia_existente = Materia.query.filter_by(codigo=codigo, carrera_id=carrera_id, activa=True).first()
                 
                 # Obtener valores opcionales
                 creditos = int(row['creditos']) if 'creditos' in df.columns and not pd.isna(row['creditos']) else 3
                 horas_teoricas = int(row['horas_teoricas']) if 'horas_teoricas' in df.columns and not pd.isna(row['horas_teoricas']) else 3
                 horas_practicas = int(row['horas_practicas']) if 'horas_practicas' in df.columns and not pd.isna(row['horas_practicas']) else 0
-                descripcion = str(row['descripcion']) if 'descripcion' in df.columns and not pd.isna(row['descripcion']) else None
+                descripcion = str(row['descripcion']).strip() if 'descripcion' in df.columns and not pd.isna(row['descripcion']) and str(row['descripcion']).upper() != 'NULL' else None
                 
-                # Crear materia
-                materia = Materia(
-                    nombre=str(row['nombre']).strip(),
-                    codigo=codigo,
-                    cuatrimestre=cuatrimestre,
-                    carrera_id=carrera_id,
-                    creditos=creditos,
-                    horas_teoricas=horas_teoricas,
-                    horas_practicas=horas_practicas,
-                    descripcion=descripcion,
-                    creado_por=1  # Admin por defecto
-                )
-                
-                db.session.add(materia)
-                resultados['exitosos'].append({
-                    'nombre': materia.nombre,
-                    'codigo': codigo,
-                    'cuatrimestre': cuatrimestre,
-                    'carrera': materia.get_carrera_nombre()
-                })
+                if materia_existente:
+                    # Actualizar materia existente
+                    materia_existente.nombre = str(row['nombre']).strip()
+                    materia_existente.cuatrimestre = cuatrimestre
+                    materia_existente.creditos = creditos
+                    materia_existente.horas_teoricas = horas_teoricas
+                    materia_existente.horas_practicas = horas_practicas
+                    materia_existente.descripcion = descripcion
+                    resultado['actualizados'] += 1
+                else:
+                    # Crear nueva materia
+                    materia = Materia(
+                        nombre=str(row['nombre']).strip(),
+                        codigo=codigo,
+                        cuatrimestre=cuatrimestre,
+                        carrera_id=carrera_id,
+                        creditos=creditos,
+                        horas_teoricas=horas_teoricas,
+                        horas_practicas=horas_practicas,
+                        descripcion=descripcion,
+                        creado_por=1  # Admin por defecto
+                    )
+                    db.session.add(materia)
+                    resultado['creados'] += 1
                 
             except Exception as e:
-                resultados['errores'].append(f"Fila {index + 2}: Error al procesar - {str(e)}")
+                resultado['errores'].append(f"Fila {index + 2}: Error al procesar - {str(e)}")
         
         # Guardar todos los cambios
-        if resultados['exitosos']:
+        if resultado['creados'] > 0 or resultado['actualizados'] > 0:
             db.session.commit()
+            resultado['exito'] = True
+            resultado['mensaje'] = 'Importación completada exitosamente'
+        elif len(resultado['errores']) > 0:
+            resultado['mensaje'] = 'No se pudo importar ninguna materia debido a errores'
+        else:
+            resultado['mensaje'] = 'No se encontraron registros para procesar'
         
+    except pd.errors.EmptyDataError:
+        resultado['mensaje'] = 'El archivo está vacío o no tiene datos válidos'
+    except pd.errors.ParserError:
+        resultado['mensaje'] = 'Error al leer el archivo. Verifica que sea un CSV válido'
     except Exception as e:
         db.session.rollback()
-        resultados['errores'].append(f"Error al leer archivo: {str(e)}")
+        resultado['mensaje'] = f"Error al leer el archivo: {str(e)}"
     
-    return resultados
+    return resultado
 
 def generar_pdf_materias(materias, nombre_carrera=None, cuatrimestre=None):
     """

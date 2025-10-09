@@ -130,17 +130,13 @@
                                 <div class="form-text">Ejemplo: A101, Lab1, Auditorio</div>
                             </div>
 
-                            <!-- Período académico -->
+                            <!-- Información del período académico -->
                             <div class="col-md-6">
-                                <label for="periodo_academico" class="form-label">Período Académico <span class="text-danger">*</span></label>
-                                {{ form.periodo_academico(class="form-control") }}
-                                {% if form.periodo_academico.errors %}
-                                    <div class="text-danger small">
-                                        {% for error in form.periodo_academico.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                                <label class="form-label">Período Académico</label>
+                                <div class="form-control-plaintext">
+                                    {{ horario_academico.periodo_academico }}
+                                    <small class="text-muted d-block">El período se calcula automáticamente según el ciclo escolar</small>
+                                </div>
                             </div>
                         </div>
 

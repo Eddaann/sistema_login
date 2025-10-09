@@ -82,15 +82,19 @@
                 </div>
                 <div class="card-body">
                     <form method="GET" class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="carrera" class="form-label">Carrera</label>
                             {{ filtrar_form.carrera(class="form-select") }}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label for="ciclo" class="form-label">Ciclo Escolar</label>
+                            {{ filtrar_form.ciclo(class="form-select") }}
+                        </div>
+                        <div class="col-md-3">
                             <label for="cuatrimestre" class="form-label">Cuatrimestre</label>
                             {{ filtrar_form.cuatrimestre(class="form-select") }}
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="busqueda" class="form-label">Buscar</label>
                             <input type="text" class="form-control" id="busqueda" name="busqueda"
                                    placeholder="Nombre, código..." value="{{ filtros_activos['busqueda'] or '' }}">
@@ -153,6 +157,7 @@
                                         <th>Nombre</th>
                                         <th>Carrera</th>
                                         <th>Cuatrimestre</th>
+                                        <th>Ciclo Escolar</th>
                                         <th>Créditos</th>
                                         <th>Horas</th>
                                         <th>Estado</th>
@@ -174,6 +179,11 @@
                                         <td>{{ materia.get_carrera_nombre() }}</td>
                                         <td>
                                             <span class="badge bg-primary">{{ materia.get_cuatrimestre_display() }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ materia.get_ciclo_escolar()['ciclo'] }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ materia.get_ciclo_escolar()['nombre'] }}</small>
                                         </td>
                                         <td>
                                             <span class="badge bg-success">{{ materia.creditos }}</span>
@@ -232,7 +242,8 @@
 <!-- Formulario oculto para exportar PDF -->
 <form id="exportForm" method="GET" action="{{ url_for('exportar_materias') }}" style="display: none;">
     {{ exportar_form.hidden_tag() }}
-    <input type="hidden" name="carrera_id" value="{{ filtros_activos.carrera_id or '' }}">
+    <input type="hidden" name="carrera_id" value="{{ filtros_activos.carrera or '' }}">
+    <input type="hidden" name="ciclo" value="{{ filtros_activos.ciclo or '' }}">
     <input type="hidden" name="cuatrimestre" value="{{ filtros_activos.cuatrimestre or '' }}">
 </form>
 {% endblock %}

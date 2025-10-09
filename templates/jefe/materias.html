@@ -4,6 +4,60 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Filtros -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filtros
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-5">
+                            <label for="ciclo" class="form-label">Ciclo Escolar</label>
+                            <select name="ciclo" id="ciclo" class="form-select">
+                                <option value="">Todos los ciclos</option>
+                                <option value="1" {% if filtros_activos.ciclo == 1 %}selected{% endif %}>Ciclo 1 (Cuatrimestres 1, 4, 7, 10)</option>
+                                <option value="2" {% if filtros_activos.ciclo == 2 %}selected{% endif %}>Ciclo 2 (Cuatrimestres 2, 5, 8)</option>
+                                <option value="3" {% if filtros_activos.ciclo == 3 %}selected{% endif %}>Ciclo 3 (Cuatrimestres 0, 3, 6, 9)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="cuatrimestre" class="form-label">Cuatrimestre</label>
+                            <select name="cuatrimestre" id="cuatrimestre" class="form-select">
+                                <option value="">Todos los cuatrimestres</option>
+                                <option value="0" {% if filtros_activos.cuatrimestre == 0 %}selected{% endif %}>Cuatrimestre 0</option>
+                                <option value="1" {% if filtros_activos.cuatrimestre == 1 %}selected{% endif %}>Cuatrimestre 1</option>
+                                <option value="2" {% if filtros_activos.cuatrimestre == 2 %}selected{% endif %}>Cuatrimestre 2</option>
+                                <option value="3" {% if filtros_activos.cuatrimestre == 3 %}selected{% endif %}>Cuatrimestre 3</option>
+                                <option value="4" {% if filtros_activos.cuatrimestre == 4 %}selected{% endif %}>Cuatrimestre 4</option>
+                                <option value="5" {% if filtros_activos.cuatrimestre == 5 %}selected{% endif %}>Cuatrimestre 5</option>
+                                <option value="6" {% if filtros_activos.cuatrimestre == 6 %}selected{% endif %}>Cuatrimestre 6</option>
+                                <option value="7" {% if filtros_activos.cuatrimestre == 7 %}selected{% endif %}>Cuatrimestre 7</option>
+                                <option value="8" {% if filtros_activos.cuatrimestre == 8 %}selected{% endif %}>Cuatrimestre 8</option>
+                                <option value="9" {% if filtros_activos.cuatrimestre == 9 %}selected{% endif %}>Cuatrimestre 9</option>
+                                <option value="10" {% if filtros_activos.cuatrimestre == 10 %}selected{% endif %}>Cuatrimestre 10</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>
+                                Filtrar
+                            </button>
+                            <a href="{{ url_for('gestionar_materias_jefe') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lista de materias -->
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -26,6 +80,7 @@
                                         <th>Código</th>
                                         <th>Nombre</th>
                                         <th>Cuatrimestre</th>
+                                        <th>Ciclo Escolar</th>
                                         <th>Créditos</th>
                                         <th>Horas Totales</th>
                                         <th>Estado</th>
@@ -40,6 +95,11 @@
                                         </td>
                                         <td>{{ materia.nombre }}</td>
                                         <td>{{ materia.get_cuatrimestre_display() }}</td>
+                                        <td>
+                                            <span class="badge badge-info">{{ materia.get_ciclo_escolar()['ciclo'] }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ materia.get_ciclo_escolar()['nombre'] }}</small>
+                                        </td>
                                         <td>{{ materia.creditos }}</td>
                                         <td>{{ materia.get_horas_totales() }}</td>
                                         <td>

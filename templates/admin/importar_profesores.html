@@ -68,7 +68,8 @@
                         <h6>Columnas Requeridas</h6>
                         <ul class="list-unstyled">
                             <li><i class="fas fa-check text-success me-2"></i><code>nombre</code> - Nombre del profesor</li>
-                            <li><i class="fas fa-check text-success me-2"></i><code>apellido</code> - Apellido del profesor</li>
+                            <li><i class="fas fa-check text-success me-2"></i><code>apellido_paterno</code> - Apellido paterno</li>
+                            <li><i class="fas fa-check text-success me-2"></i><code>apellido_materno</code> - Apellido materno</li>
                             <li><i class="fas fa-check text-success me-2"></i><code>email</code> - Email único</li>
                             <li><i class="fas fa-check text-success me-2"></i><code>tipo_profesor</code> - Tipo de profesor</li>
                         </ul>
@@ -77,7 +78,7 @@
                         <h6>Columnas Opcionales</h6>
                         <ul class="list-unstyled">
                             <li><i class="fas fa-circle text-info me-2"></i><code>telefono</code> - Número de teléfono</li>
-                            <li><i class="fas fa-circle text-info me-2"></i><code>carrera_codigo</code> - Código de carrera</li>
+                            <li><i class="fas fa-circle text-info me-2"></i><code>carrera_codigo</code> - Código de carrera (puede ser múltiple separado por comas)</li>
                         </ul>
                     </div>
                 </div>
@@ -113,11 +114,11 @@
             </div>
             <div class="card-body">
                 <pre class="bg-light p-3 rounded">
-nombre,apellido,email,telefono,tipo_profesor,carrera_codigo
-Juan,Pérez,juan.perez@universidad.edu,555-1234,profesor_completo,ING-SIS
-María,González,maria.gonzalez@universidad.edu,555-5678,profesor_asignatura,MED
-Carlos,Rodríguez,carlos.rodriguez@universidad.edu,555-9012,tiempo completo,DER
-Ana,López,ana.lopez@universidad.edu,,asignatura,ADM</pre>
+nombre,apellido_paterno,apellido_materno,email,telefono,tipo_profesor,carrera_codigo
+Juan,Pérez,García,juan.perez@universidad.edu,555-1234,profesor_completo,IRO
+María,González,López,maria.gonzalez@universidad.edu,555-5678,profesor_asignatura,IRO
+Carlos,Rodríguez,Martínez,carlos.rodriguez@universidad.edu,555-9012,tiempo completo,IRO
+Ana,López,Hernández,ana.lopez@universidad.edu,,asignatura,IRO</pre>
             </div>
         </div>
 
@@ -131,10 +132,11 @@ Ana,López,ana.lopez@universidad.edu,,asignatura,ADM</pre>
             </div>
             <div class="card-body">
                 <ul class="list-unstyled">
-                    <li><i class="fas fa-key text-warning me-2"></i>Se generará automáticamente un <strong>username</strong> único basado en nombre.apellido</li>
+                    <li><i class="fas fa-key text-warning me-2"></i>Se generará automáticamente un <strong>username</strong> único basado en nombre.apellido_paterno</li>
                     <li><i class="fas fa-lock text-warning me-2"></i>La contraseña temporal será <strong>"profesor123"</strong> para todos los profesores importados</li>
                     <li><i class="fas fa-envelope text-warning me-2"></i>Los emails deben ser únicos en el sistema</li>
                     <li><i class="fas fa-graduation-cap text-warning me-2"></i>Si no se especifica carrera_codigo, se usará la carrera por defecto seleccionada arriba</li>
+                    <li><i class="fas fa-users text-warning me-2"></i>Un profesor puede estar asignado a múltiples carreras separando los códigos con comas (ej: IRO,ISC)</li>
                     <li><i class="fas fa-shield-alt text-warning me-2"></i>Los profesores importados estarán activos por defecto</li>
                 </ul>
             </div>

@@ -315,7 +315,7 @@ class MateriaForm(FlaskForm):
     
     cuatrimestre = IntegerField('Cuatrimestre', validators=[
         DataRequired(message='El cuatrimestre es obligatorio'),
-        NumberRange(min=1, max=12, message='El cuatrimestre debe estar entre 1 y 12')
+        NumberRange(min=0, max=10, message='El cuatrimestre debe estar entre 0 y 10')
     ])
     
     creditos = IntegerField('Créditos', validators=[
@@ -380,8 +380,15 @@ class ImportarMateriasForm(FlaskForm):
 class FiltrarMateriasForm(FlaskForm):
     """Formulario para filtrar materias"""
     carrera = SelectField('Filtrar por Carrera', validators=[Optional()])
+    ciclo = SelectField('Filtrar por Ciclo Escolar', choices=[
+        ('', 'Todos los ciclos'),
+        ('1', 'Ciclo 1 (Cuatrimestres 1, 4, 7, 10)'),
+        ('2', 'Ciclo 2 (Cuatrimestres 2, 5, 8)'),
+        ('3', 'Ciclo 3 (Cuatrimestres 0, 3, 6, 9)')
+    ], validators=[Optional()])
     cuatrimestre = SelectField('Filtrar por Cuatrimestre', choices=[
         ('', 'Todos los cuatrimestres'),
+        ('0', 'Cuatrimestre 0'),
         ('1', 'Cuatrimestre 1'),
         ('2', 'Cuatrimestre 2'),
         ('3', 'Cuatrimestre 3'),
@@ -391,9 +398,7 @@ class FiltrarMateriasForm(FlaskForm):
         ('7', 'Cuatrimestre 7'),
         ('8', 'Cuatrimestre 8'),
         ('9', 'Cuatrimestre 9'),
-        ('10', 'Cuatrimestre 10'),
-        ('11', 'Cuatrimestre 11'),
-        ('12', 'Cuatrimestre 12')
+        ('10', 'Cuatrimestre 10')
     ], validators=[Optional()])
     
     submit = SubmitField('Filtrar')
@@ -411,6 +416,7 @@ class ExportarMateriasForm(FlaskForm):
     carrera = SelectField('Carrera a Exportar', validators=[Optional()])
     cuatrimestre = SelectField('Cuatrimestre a Exportar', choices=[
         ('', 'Todos los cuatrimestres'),
+        ('0', 'Cuatrimestre 0'),
         ('1', 'Cuatrimestre 1'),
         ('2', 'Cuatrimestre 2'),
         ('3', 'Cuatrimestre 3'),
@@ -420,9 +426,7 @@ class ExportarMateriasForm(FlaskForm):
         ('7', 'Cuatrimestre 7'),
         ('8', 'Cuatrimestre 8'),
         ('9', 'Cuatrimestre 9'),
-        ('10', 'Cuatrimestre 10'),
-        ('11', 'Cuatrimestre 11'),
-        ('12', 'Cuatrimestre 12')
+        ('10', 'Cuatrimestre 10')
     ], validators=[Optional()])
     
     submit = SubmitField('Exportar a PDF')
@@ -432,8 +436,18 @@ class GenerarHorariosForm(FlaskForm):
     
     carrera = SelectField('Carrera', choices=[], validators=[DataRequired()])
     
+    # Ciclo escolar
+    ciclo = SelectField('Ciclo Escolar', choices=[
+        ('', 'Seleccione un ciclo'),
+        ('1', 'Ciclo 1 (Cuatrimestres 1, 4, 7, 10)'),
+        ('2', 'Ciclo 2 (Cuatrimestres 2, 5, 8)'),
+        ('3', 'Ciclo 3 (Cuatrimestres 0, 3, 6, 9)')
+    ], validators=[DataRequired()])
+    
+    # Cuatrimestre - se filtrará dinámicamente según el ciclo
     cuatrimestre = SelectField('Cuatrimestre', choices=[
         ('', 'Seleccione cuatrimestre'),
+        ('0', 'Cuatrimestre 0'),
         ('1', 'Cuatrimestre 1'),
         ('2', 'Cuatrimestre 2'),
         ('3', 'Cuatrimestre 3'),
@@ -443,9 +457,7 @@ class GenerarHorariosForm(FlaskForm):
         ('7', 'Cuatrimestre 7'),
         ('8', 'Cuatrimestre 8'),
         ('9', 'Cuatrimestre 9'),
-        ('10', 'Cuatrimestre 10'),
-        ('11', 'Cuatrimestre 11'),
-        ('12', 'Cuatrimestre 12')
+        ('10', 'Cuatrimestre 10')
     ], validators=[DataRequired()])
     
     turno = SelectField('Turno', choices=[
@@ -468,11 +480,6 @@ class GenerarHorariosForm(FlaskForm):
     viernes = SelectField('Viernes', choices=[('si', 'Sí'), ('no', 'No')], default='si')
     sabado = SelectField('Sábado', choices=[('si', 'Sí'), ('no', 'No')], default='no')
     
-    periodo_academico = StringField('Período Académico', 
-                                   default='2025-1', 
-                                   validators=[DataRequired(), 
-                                             Length(max=20, message='Máximo 20 caracteres')])
-    
     submit = SubmitField('Generar Horarios')
 
 class EditarHorarioAcademicoForm(FlaskForm):
@@ -490,7 +497,6 @@ class EditarHorarioAcademicoForm(FlaskForm):
     ], validators=[DataRequired()])
     
     aula = StringField('Aula', validators=[Length(max=20, message='Máximo 20 caracteres')])
-    periodo_academico = StringField('Período Académico', validators=[DataRequired(), Length(max=20)])
     
     submit = SubmitField('Guardar Cambios')
 
