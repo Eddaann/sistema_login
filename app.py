@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from models import db, User, Horario, Carrera, Materia, HorarioAcademico, DisponibilidadProfesor, init_db, init_upload_dirs
@@ -19,6 +19,10 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import csv
+import openpyxl
+from openpyxl.styles import Font, Alignment
+from reportlab.lib.pagesizes import letter, A4, landscape 
+import re
 
 app = Flask(__name__)
 
@@ -2576,7 +2580,483 @@ def exportar_reportes_csv():
         mimetype='text/csv'
     )
 
-# Crear base de datos y usuario admin al inicio
+
+# ==========================================
+# VISTA DE HORARIOS POR PROFESOR PARA ADMIN
+# ==========================================
+@app.route('/admin/horarios/profesores')
+@login_required
+def admin_horario_profesores():
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+       
+        asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+        
+        horarios_por_profesor = {}
+        for asignacion in asignaciones:
+           
+            profesor_nombre = asignacion.profesor.get_nombre_completo()
+            
+            if profesor_nombre not in horarios_por_profesor:
+                horarios_por_profesor[profesor_nombre] = {
+                    'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
+                }
+            
+            info_clase = (
+                f"{asignacion.materia.nombre}<br>"
+                f"<small class='text-muted'>{asignacion.materia.codigo}</small><br>"
+                f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
+            )
+            
+           
+            dia_capitalizado = asignacion.dia_semana.capitalize()
+            if dia_capitalizado in horarios_por_profesor[profesor_nombre]:
+                 horarios_por_profesor[profesor_nombre][dia_capitalizado].append(info_clase)
+
+    except Exception as e:
+        flash(f'Error al cargar los horarios: {e}', 'danger')
+        horarios_por_profesor = {}
+
+    return render_template('admin/admin_horario_profesores.html', horarios_data=horarios_por_profesor)
+
+# ==========================================
+# VISTA DE HORARIOS POR GRUPO PARA ADMIN
+# ==========================================
+
+@app.route('/admin/horarios/grupos')
+@login_required
+def admin_horario_grupos():
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        
+        asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
+        
+        horarios_por_materia = {}
+        for asignacion in asignaciones:
+           
+            materia_nombre = asignacion.materia.nombre
+            
+            if materia_nombre not in horarios_por_materia:
+                horarios_por_materia[materia_nombre] = {
+                    'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
+                }
+            
+            info_clase = (
+                f"Prof: {asignacion.profesor.get_nombre_completo()}<br>"
+                f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
+            )
+
+            dia_capitalizado = asignacion.dia_semana.capitalize()
+            if dia_capitalizado in horarios_por_materia[materia_nombre]:
+                 horarios_por_materia[materia_nombre][dia_capitalizado].append(info_clase)
+
+    except Exception as e:
+        flash(f'Error al cargar los horarios: {e}', 'danger')
+        horarios_por_materia = {}
+
+    
+    return render_template('admin/admin_horario_grupos.html', horarios_data=horarios_por_materia)
+
+
+# ==========================================
+# EXPORTAR HORARIOS POR PROFESOR (WORD EXCEL)
+# ==========================================
+
+@app.route('/admin/horarios/profesores/exportar/excel')
+@login_required
+def exportar_horarios_profesor_excel():
+    if not current_user.is_admin():
+        abort(403)
+    
+    
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+    horarios_por_profesor = {}
+    for a in asignaciones:
+      
+        if not a.profesor or not a.materia or not a.horario:
+            continue 
+
+        profesor_nombre = a.profesor.get_nombre_completo()
+        if profesor_nombre not in horarios_por_profesor:
+            horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+        
+        info = f"{a.materia.nombre}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+        dia = a.dia_semana.capitalize()
+        if dia in horarios_por_profesor[profesor_nombre]:
+             horarios_por_profesor[profesor_nombre][dia].append(info)
+       
+
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Horarios por Profesor"
+    headers = ["Profesor", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
+    for profesor, dias in horarios_por_profesor.items():
+        ws.append([profesor] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+    for col_cells in ws.columns:
+        ws.column_dimensions[col_cells[0].column_letter].width = 30
+        for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
+    buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_profesor.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# ==========================================
+# EXPORTAR HORARIOS POR PROFESOR (PDF)
+# ==========================================
+
+@app.route('/admin/horarios/profesores/exportar/pdf')
+@login_required
+def exportar_horarios_profesor_pdf():
+    if not current_user.is_admin():
+        abort(403)
+
+    
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+    horarios_por_profesor = {}
+    for a in asignaciones:
+        
+        if not a.profesor or not a.materia or not a.horario:
+            continue
+
+        profesor_nombre = a.profesor.get_nombre_completo()
+        if profesor_nombre not in horarios_por_profesor:
+            horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+
+        info = f"{a.materia.nombre}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+        dia = a.dia_semana.capitalize()
+        if dia in horarios_por_profesor[profesor_nombre]:
+            horarios_por_profesor[profesor_nombre][dia].append(info)
+       
+
+    styles = getSampleStyleSheet(); styleN = styles['BodyText']
+    data = [["Profesor", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+    for profesor, dias in horarios_por_profesor.items():
+        row_data = [Paragraph(profesor, styleN)]
+        for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
+        data.append(row_data)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+    table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
+    style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.grey), ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke), ('GRID', (0,0), (-1,-1), 1, colors.black)])
+    table.setStyle(style); doc.build([table]); buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_profesor.pdf', mimetype='application/pdf')
+
+# ==========================================
+# EXPORTAR HORARIOS POR GRUPO (EXCEL)
+# ==========================================
+
+@app.route('/admin/horarios/grupos/exportar/excel')
+@login_required
+def exportar_horarios_grupo_excel():
+    if not current_user.is_admin():
+        abort(403)
+    
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
+    horarios_por_materia = {}
+    for a in asignaciones:
+     
+        if not a.profesor or not a.materia or not a.horario:
+            continue
+
+        materia_nombre = a.materia.nombre
+        if materia_nombre not in horarios_por_materia:
+            horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+        
+        info = f"Prof: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+        dia = a.dia_semana.capitalize()
+        if dia in horarios_por_materia[materia_nombre]:
+             horarios_por_materia[materia_nombre][dia].append(info)
+       
+
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Horarios por Materia"
+    headers = ["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+    ws.append(headers)
+    for cell in ws[1]: cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
+    for materia, dias in horarios_por_materia.items():
+        ws.append([materia] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+    for col_cells in ws.columns:
+        ws.column_dimensions[col_cells[0].column_letter].width = 30
+        for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
+    buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_materia.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# ==========================================
+# EXPORTAR HORARIOS POR GRUPO (PDF)
+# ==========================================
+
+@app.route('/admin/horarios/grupos/exportar/pdf')
+@login_required
+def exportar_horarios_grupo_pdf():
+    if not current_user.is_admin():
+        abort(403)
+    
+    
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
+    horarios_por_materia = {}
+    for a in asignaciones:
+       
+        if not a.profesor or not a.materia or not a.horario:
+            continue
+        
+        materia_nombre = a.materia.nombre
+        if materia_nombre not in horarios_por_materia:
+            horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+        
+        info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+        dia = a.dia_semana.capitalize()
+        if dia in horarios_por_materia[materia_nombre]:
+             horarios_por_materia[materia_nombre][dia].append(info)
+        
+
+  
+    styles = getSampleStyleSheet(); styleN = styles['BodyText']
+    data = [["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+    for materia, dias in horarios_por_materia.items():
+        row_data = [Paragraph(materia, styleN)]
+        for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
+        data.append(row_data)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+    table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
+    style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.green), ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke), ('GRID', (0,0), (-1,-1), 1, colors.black)])
+    table.setStyle(style); doc.build([table]); buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_materia.pdf', mimetype='application/pdf')
+
+
+# ===================================================================
+# = RUTAS PARA JEFES DE CARRERA - GESTIÓN DE HORARIOS
+# ===================================================================
+
+@app.route('/jefe/horarios/profesores')
+@login_required
+def jefe_ver_horarios_profesores():
+    if not current_user.is_jefe_carrera():
+        abort(403)
+
+    id_carrera = current_user.carrera_id
+    if not id_carrera:
+        flash("No tienes una carrera asignada para ver horarios.", "warning")
+        return redirect(url_for('dashboard'))
+
+    try:
+        
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id == id_carrera,
+            HorarioAcademico.activo == True
+        ).order_by(HorarioAcademico.profesor_id).all()
+        
+        horarios_por_profesor = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            profesor_nombre = a.profesor.get_nombre_completo()
+            if profesor_nombre not in horarios_por_profesor:
+                horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            
+            info = f"{a.materia.nombre}<br/><small class='text-muted'>{a.materia.codigo}</small><br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_profesor[profesor_nombre]:
+                horarios_por_profesor[profesor_nombre][dia].append(info)
+                
+    except Exception as e:
+        flash(f"Error al cargar los horarios: {e}", "danger")
+        horarios_por_profesor = {}
+
+    return render_template('jefe/jefe_horario_profesores.html', horarios_data=horarios_por_profesor)
+
+
+@app.route('/jefe/horarios/grupos')
+@login_required
+def jefe_ver_horarios_grupos():
+    if not current_user.is_jefe_carrera():
+        abort(403)
+
+    id_carrera = current_user.carrera_id
+    if not id_carrera:
+        flash("No tienes una carrera asignada para ver horarios.", "warning")
+        return redirect(url_for('dashboard'))
+
+    try:
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id == id_carrera,
+            HorarioAcademico.activo == True
+        ).order_by(HorarioAcademico.materia_id).all()
+
+        horarios_por_materia = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            materia_nombre = a.materia.nombre
+            if materia_nombre not in horarios_por_materia:
+                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            
+            info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_materia[materia_nombre]:
+                horarios_por_materia[materia_nombre][dia].append(info)
+                
+    except Exception as e:
+        flash(f"Error al cargar los horarios: {e}", "danger")
+        horarios_por_materia = {}
+
+    return render_template('jefe/jefe_horario_grupos.html', horarios_data=horarios_por_materia)
+
+# --- Rutas de Exportación para Jefes ---
+
+@app.route('/jefe/horarios/profesores/exportar/excel')
+@login_required
+def exportar_jefe_horarios_profesor_excel():
+    if not current_user.is_jefe_carrera(): abort(403)
+    id_carrera = current_user.carrera_id
+    if not id_carrera: return redirect(url_for('dashboard'))
+    
+    try:
+        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        horarios_por_profesor = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            profesor_nombre = a.profesor.get_nombre_completo()
+            if profesor_nombre not in horarios_por_profesor:
+                horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            info = f"{a.materia.nombre}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_profesor[profesor_nombre]:
+                 horarios_por_profesor[profesor_nombre][dia].append(info)
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = f"Horarios Profesores {current_user.carrera.codigo}"
+        headers = ["Profesor", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+        ws.append(headers)
+        for cell in ws[1]: cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
+        for profesor, dias in horarios_por_profesor.items():
+            ws.append([profesor] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+        for col_cells in ws.columns:
+            ws.column_dimensions[col_cells[0].column_letter].width = 30
+            for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
+        
+        buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_profesores_{current_user.carrera.codigo}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except Exception as e:
+        flash(f"Error al generar el archivo Excel: {e}", "danger")
+        return redirect(url_for('jefe/jefe_ver_horarios_profesores'))
+
+@app.route('/jefe/horarios/profesores/exportar/pdf')
+@login_required
+def exportar_jefe_horarios_profesor_pdf():
+    if not current_user.is_jefe_carrera(): abort(403)
+    id_carrera = current_user.carrera_id
+    if not id_carrera: return redirect(url_for('dashboard'))
+    
+    try:
+        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        horarios_por_profesor = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            profesor_nombre = a.profesor.get_nombre_completo()
+            if profesor_nombre not in horarios_por_profesor:
+                horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            info = f"{a.materia.nombre}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_profesor[profesor_nombre]:
+                 horarios_por_profesor[profesor_nombre][dia].append(info)
+    
+        styles=getSampleStyleSheet(); styleN = styles['BodyText']
+        data = [["Profesor", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+        for profesor, dias in horarios_por_profesor.items():
+            row_data = [Paragraph(profesor, styleN)]
+            for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
+            data.append(row_data)
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
+        style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.grey),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('GRID', (0,0), (-1,-1), 1, colors.black)])
+        table.setStyle(style); doc.build([table]); buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_profesores_{current_user.carrera.codigo}.pdf', mimetype='application/pdf')
+    except Exception as e:
+        flash(f"Error al generar el archivo PDF: {e}", "danger")
+        return redirect(url_for('jefe/jefe_ver_horarios_profesores'))
+        
+@app.route('/jefe/horarios/grupos/exportar/excel')
+@login_required
+def exportar_jefe_horarios_grupo_excel():
+    if not current_user.is_jefe_carrera(): abort(403)
+    id_carrera = current_user.carrera_id
+    if not id_carrera: return redirect(url_for('dashboard'))
+    
+    try:
+        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        horarios_por_materia = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            materia_nombre = a.materia.nombre
+            if materia_nombre not in horarios_por_materia:
+                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            info = f"Prof: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_materia[materia_nombre]:
+                 horarios_por_materia[materia_nombre][dia].append(info)
+        
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = f"Horarios Materias {current_user.carrera.codigo}"
+        headers = ["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+        ws.append(headers)
+        for cell in ws[1]: cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
+        for materia, dias in horarios_por_materia.items():
+            ws.append([materia] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+        for col_cells in ws.columns:
+            ws.column_dimensions[col_cells[0].column_letter].width = 30
+            for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
+        
+        buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_materias_{current_user.carrera.codigo}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except Exception as e:
+        flash(f"Error al generar el archivo Excel: {e}", "danger")
+        return redirect(url_for('jefe/jefe_ver_horarios_grupos'))
+
+@app.route('/jefe/horarios/grupos/exportar/pdf')
+@login_required
+def exportar_jefe_horarios_grupo_pdf():
+    if not current_user.is_jefe_carrera(): abort(403)
+    id_carrera = current_user.carrera_id
+    if not id_carrera: return redirect(url_for('dashboard'))
+    
+    try:
+        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        horarios_por_materia = {}
+        for a in asignaciones:
+            if not all([a.profesor, a.materia, a.horario]): continue
+            materia_nombre = a.materia.nombre
+            if materia_nombre not in horarios_por_materia:
+                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            dia = a.dia_semana.capitalize()
+            if dia in horarios_por_materia[materia_nombre]:
+                 horarios_por_materia[materia_nombre][dia].append(info)
+
+        styles=getSampleStyleSheet(); styleN = styles['BodyText']
+        data = [["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+        for materia, dias in horarios_por_materia.items():
+            row_data = [Paragraph(materia, styleN)]
+            for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
+            data.append(row_data)
+            
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
+        style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.green),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('GRID', (0,0), (-1,-1), 1, colors.black)])
+        table.setStyle(style); doc.build([table]); buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_materias_{current_user.carrera.codigo}.pdf', mimetype='application/pdf')
+    except Exception as e:
+        flash(f"Error al generar el archivo PDF: {e}", "danger")
+        return redirect(url_for('jefe/jefe_ver_horarios_grupos'))
+
 with app.app_context():
     init_db()
     init_upload_dirs()

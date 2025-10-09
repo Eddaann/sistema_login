@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Horarios de Materias de {{ current_user.carrera.nombre if current_user.carrera else 'tu Carrera' }}</h3>
+         <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Regresar
+            </a>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download me-1"></i> Exportar
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('exportar_jefe_horarios_grupo_excel') }}"><i class="fas fa-file-excel me-2 text-success"></i>Excel</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('exportar_jefe_horarios_grupo_pdf') }}"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                 <table class="table table-bordered table-striped text-center">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th style="width: 15%;">Materia</th>
+                            <th>Lunes</th>
+                            <th>Martes</th>
+                            <th>Miércoles</th>
+                            <th>Jueves</th>
+                            <th>Viernes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for materia, dias in horarios_data.items() %}
+                        <tr>
+                            <td class="align-middle"><strong>{{ materia }}</strong></td>
+                            {% for dia in ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'] %}
+                            <td>
+                                {% for clase in dias[dia] %}
+                                    <div class="alert alert-info p-2 mb-1 border small">{{ clase | safe }}</div>
+                                {% endfor %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay horarios registrados para mostrar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
