@@ -761,7 +761,7 @@ class EditarUsuarioForm(FlaskForm):
     def validate_email(self, email):
         """Validar que el email no exista (excepto el actual)"""
         user = User.query.filter_by(email=email.data).first()
-        if user and user.id != self.user.email:
+        if user and user.id != self.user.id:
             raise ValidationError('Este email ya está registrado. Elija uno diferente.')
 
     def validate_carrera(self, carrera):
