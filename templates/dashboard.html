@@ -164,6 +164,29 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="col-md-6 mb-3">
+                                    <div class="card border-primary">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-user-clock fa-2x text-primary mb-2"></i>
+                                            <h6>Horarios por Profesor</h6>
+                                            <p class="small text-muted">Consultar horario de cada profesor</p>
+                                            <a href="{{ url_for('admin_horario_profesores') }}" class="btn btn-primary btn-sm">Consultar</a>
+                                        </div>
+                                    </div>
+                                </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-users fa-2x text-success mb-2"></i>
+
+                                    <h6>Horarios por Grupo</h6>
+                                    <p class="small text-muted">Consultar horario de cada grupo</p>
+                                    <a href="{{ url_for('admin_horario_grupos') }}" class="btn btn-success btn-sm">Consultar</a>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-6 mb-3">
                             <div class="card border-info">
                                 <div class="card-body text-center">
@@ -217,7 +240,31 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-6 mb-3">
+    <div class="card border-primary">
+        <div class="card-body text-center">
+            <i class="fas fa-user-clock fa-2x text-primary mb-2"></i>
+            
+            <h6>Horarios de Profesores</h6>
+            <p class="small text-muted">Ver horarios de los profesores de tu carrera</p>
+            <a href="{{ url_for('jefe_ver_horarios_profesores') }}" class="btn btn-primary btn-sm">Consultar</a>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6 mb-3">
+    <div class="card border-success">
+        <div class="card-body text-center">
+            <i class="fas fa-list-alt fa-2x text-success mb-2"></i>
+            
+            <h6>Horarios por Grupo/Materia</h6>
+            <p class="small text-muted">Ver horarios de las materias de tu carrera</p>
+            <a href="{{ url_for('jefe_ver_horarios_grupos') }}" class="btn btn-success btn-sm">Consultar</a>
+        </div>
+    </div>
+</div>
                         </div>
+                        
                     </div>
                 {% elif current_user.is_profesor() %}
                     <div class="row">

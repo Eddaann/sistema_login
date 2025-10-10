@@ -1,0 +1,66 @@
+<!-- templates/admin/admin_horario_grupos.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Horario Semanal por Grupo</h3>
+    
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Regresar al Dashboard
+        </a>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-download me-1"></i> Exportar
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('exportar_horarios_grupo_excel') }}"><i class="fas fa-file-excel me-2 text-success"></i>Exportar a Excel</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('exportar_horarios_grupo_pdf') }}"><i class="fas fa-file-pdf me-2 text-danger"></i>Exportar a PDF</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped text-center">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th style="width: 15%;">Grupo</th>
+                            <th>Lunes</th>
+                            <th>Martes</th>
+                            <th>Miércoles</th>
+                            <th>Jueves</th>
+                            <th>Viernes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grupo, dias in horarios_data.items() %}
+                        <tr>
+                            <td class="align-middle"><strong>{{ grupo }}</strong></td>
+                            
+                            <!-- Bucle para cada día de la semana -->
+                            {% for dia in ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'] %}
+                            <td>
+                                {% for clase in dias[dia] %}
+                                    <div class="alert alert-info p-2 mb-1 border small">{{ clase | safe }}</div>
+                                {% endfor %}
+                            </td>
+                            {% endfor %}
+
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay horarios registrados para mostrar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
