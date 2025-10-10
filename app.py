@@ -1615,9 +1615,11 @@ def agregar_usuario():
             nombre=form.nombre.data,
             apellido=form.apellido.data,
             rol=form.rol.data,
-            telefono=form.telefono.data,
-            activo=form.activo.data
+            telefono=form.telefono.data
         )
+        
+        # Asignar estado activo después de la creación
+        nuevo_usuario.activo = form.activo.data
         
         # Asignar carrera según el rol
         if form.rol.data == 'jefe_carrera':

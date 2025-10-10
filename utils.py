@@ -16,10 +16,13 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
     Formato esperado del archivo:
     - nombre, apellido_paterno, apellido_materno, email, telefono, tipo_profesor, carrera_codigo (opcional)
     """
-    resultados = {
-        'exitosos': [],
+    resultado = {
+        'exito': False,
+        'procesados': 0,
+        'creados': 0,
+        'actualizados': 0,
         'errores': [],
-        'total_procesados': 0
+        'mensaje': ''
     }
     
     try:
@@ -47,23 +50,23 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
         
         if columnas_faltantes:
             columnas_encontradas = ', '.join(df.columns.tolist())
-            resultados['errores'].append(f"Columnas faltantes: {', '.join(columnas_faltantes)}. Columnas encontradas: {columnas_encontradas}")
-            return resultados
+            resultado['mensaje'] = f"Columnas faltantes: {', '.join(columnas_faltantes)}. Columnas encontradas: {columnas_encontradas}"
+            return resultado
         
         # Procesar cada fila
         for index, row in df.iterrows():
             try:
-                resultados['total_procesados'] += 1
+                resultado['procesados'] += 1
                 
                 # Validar datos básicos
                 if pd.isna(row['nombre']) or pd.isna(row['apellido_paterno']) or pd.isna(row['apellido_materno']) or pd.isna(row['email']):
-                    resultados['errores'].append(f"Fila {index + 2}: Datos básicos incompletos (nombre, apellido_paterno, apellido_materno o email vacío)")
+                    resultado['errores'].append(f"Fila {index + 2}: Datos básicos incompletos (nombre, apellido_paterno, apellido_materno o email vacío)")
                     continue
                 
                 # Validar tipo de profesor
                 tipo_profesor = str(row['tipo_profesor']).lower().strip()
                 if tipo_profesor not in ['profesor_completo', 'profesor_asignatura', 'tiempo completo', 'asignatura']:
-                    resultados['errores'].append(f"Fila {index + 2}: Tipo de profesor inválido (debe ser: profesor_completo, profesor_asignatura, tiempo completo o asignatura)")
+                    resultado['errores'].append(f"Fila {index + 2}: Tipo de profesor inválido (debe ser: profesor_completo, profesor_asignatura, tiempo completo o asignatura)")
                     continue
                 
                 # Normalizar tipo de profesor
@@ -82,14 +85,14 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                         if carrera:
                             carreras.append(carrera)
                         else:
-                            resultados['errores'].append(f"Fila {index + 2}: Carrera con código '{codigo.strip()}' no encontrada")
+                            resultado['errores'].append(f"Fila {index + 2}: Carrera con código '{codigo.strip()}' no encontrada")
                 elif carrera_defecto_id:
                     carrera = Carrera.query.get(carrera_defecto_id)
                     if carrera:
                         carreras.append(carrera)
                 
                 if not carreras:
-                    resultados['errores'].append(f"Fila {index + 2}: No se pudo determinar la carrera (especifica carrera_codigo o selecciona carrera por defecto)")
+                    resultado['errores'].append(f"Fila {index + 2}: No se pudo determinar la carrera para {row['nombre']} {row['apellido_paterno']}. Agrega 'carrera_codigo' en el CSV o selecciona una carrera por defecto.")
                     continue
                 
                 # Construir apellido completo
@@ -97,59 +100,64 @@ def procesar_archivo_profesores(archivo, carrera_defecto_id=None):
                 apellido_materno = str(row['apellido_materno']).strip().title()
                 apellido_completo = f"{apellido_paterno} {apellido_materno}"
                 
-                # Generar username único
-                nombre_base = str(row['nombre']).lower().strip()
-                apellido_base = apellido_paterno.lower()
-                username_base = f"{nombre_base}.{apellido_base}".replace(' ', '')
-                username = username_base
-                contador = 1
+                # Verificar si el usuario ya existe por email
+                usuario_existente = User.query.filter_by(email=str(row['email']).strip()).first()
                 
-                while User.query.filter_by(username=username).first():
-                    username = f"{username_base}{contador}"
-                    contador += 1
-                
-                # Verificar si el email ya existe
-                if User.query.filter_by(email=str(row['email']).strip()).first():
-                    resultados['errores'].append(f"Fila {index + 2}: Email {row['email']} ya existe en el sistema")
-                    continue
-                
-                # Crear usuario
-                usuario = User(
-                    username=username,
-                    email=str(row['email']).strip(),
-                    password='profesor123',  # Contraseña temporal
-                    nombre=str(row['nombre']).strip().title(),
-                    apellido=apellido_completo,
-                    rol=tipo_profesor,
-                    telefono=str(row['telefono']).strip() if 'telefono' in df.columns and not pd.isna(row['telefono']) else None,
-                    carreras=carreras  # Asignar carreras (relación many-to-many)
-                )
-                
-                db.session.add(usuario)
-                resultados['exitosos'].append({
-                    'nombre': usuario.get_nombre_completo(),
-                    'username': username,
-                    'email': usuario.email,
-                    'tipo': usuario.get_rol_display(),
-                    'carreras': ', '.join([c.nombre for c in carreras])
-                })
+                if usuario_existente:
+                    # Actualizar usuario existente
+                    usuario_existente.nombre = str(row['nombre']).strip().title()
+                    usuario_existente.apellido = apellido_completo
+                    usuario_existente.rol = tipo_profesor
+                    usuario_existente.telefono = str(row['telefono']).strip() if 'telefono' in df.columns and not pd.isna(row['telefono']) else None
+                    usuario_existente.carreras = carreras
+                    resultado['actualizados'] += 1
+                else:
+                    # Generar username único
+                    nombre_base = str(row['nombre']).lower().strip()
+                    apellido_base = apellido_paterno.lower()
+                    username_base = f"{nombre_base}.{apellido_base}".replace(' ', '')
+                    username = username_base
+                    contador = 1
+                    
+                    while User.query.filter_by(username=username).first():
+                        username = f"{username_base}{contador}"
+                        contador += 1
+                    
+                    # Crear nuevo usuario
+                    usuario = User(
+                        username=username,
+                        email=str(row['email']).strip(),
+                        password='profesor123',  # Contraseña temporal
+                        nombre=str(row['nombre']).strip().title(),
+                        apellido=apellido_completo,
+                        rol=tipo_profesor,
+                        telefono=str(row['telefono']).strip() if 'telefono' in df.columns and not pd.isna(row['telefono']) else None,
+                        carreras=carreras  # Asignar carreras (relación many-to-many)
+                    )
+                    
+                    db.session.add(usuario)
+                    resultado['creados'] += 1
                 
             except Exception as e:
-                resultados['errores'].append(f"Fila {index + 2}: Error al procesar - {str(e)}")
+                resultado['errores'].append(f"Fila {index + 2}: Error al procesar - {str(e)}")
         
         # Guardar todos los cambios
-        if resultados['exitosos']:
+        if resultado['creados'] > 0 or resultado['actualizados'] > 0:
             db.session.commit()
+            resultado['exito'] = True
+            resultado['mensaje'] = f"Importación completada: {resultado['creados']} creados, {resultado['actualizados']} actualizados"
+        else:
+            resultado['mensaje'] = "No se pudo procesar ningún registro correctamente"
         
     except pd.errors.EmptyDataError:
-        resultados['errores'].append('El archivo está vacío o no tiene datos válidos')
+        resultado['mensaje'] = 'El archivo está vacío o no tiene datos válidos'
     except pd.errors.ParserError:
-        resultados['errores'].append('Error al leer el archivo. Verifica que sea un CSV válido')
+        resultado['mensaje'] = 'Error al leer el archivo. Verifica que sea un CSV válido'
     except Exception as e:
         db.session.rollback()
-        resultados['errores'].append(f"Error al leer archivo: {str(e)}")
+        resultado['mensaje'] = f"Error al leer archivo: {str(e)}"
     
-    return resultados
+    return resultado
 
 def generar_pdf_profesores(carrera_id=None, incluir_contacto=True):
     """
