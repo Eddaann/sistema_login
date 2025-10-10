@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Materias del Grupo {{ grupo.codigo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-book-open"></i> Materias del Grupo {{ grupo.codigo }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('gestionar_materias_grupo', id=grupo.id) }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit"></i> Modificar Materias
+                        </a>
+                        <a href="{{ url_for('gestionar_grupos') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Información del Grupo -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="info-box bg-info" style="border-radius: 15px; text-align: center;">
+                                <span class="info-box-icon"><i class="fas fa-users-class"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Código Grupo</span>
+                                    <span class="info-box-number">{{ grupo.codigo }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box bg-success" style="border-radius: 15px; text-align: center;">
+                                <span class="info-box-icon"><i class="fas fa-graduation-cap"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Carrera</span>
+                                    <span class="info-box-number" style="font-size: 14px;">{{ grupo.carrera.codigo }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box bg-warning" style="border-radius: 15px; text-align: center;">
+                                <span class="info-box-icon"><i class="fas fa-{{ 'sun' if grupo.turno == 'M' else 'moon' }}"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Turno</span>
+                                    <span class="info-box-number" style="font-size: 16px;">{{ grupo.get_turno_display() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-box bg-primary" style="border-radius: 15px; text-align: center;">
+                                <span class="info-box-icon"><i class="fas fa-book"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Total Materias</span>
+                                    <span class="info-box-number">{{ grupo.get_materias_count() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de Materias -->
+                    {% if grupo.materias %}
+                        <h4 class="mb-3">
+                            <i class="fas fa-list"></i> Materias Asignadas
+                        </h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre</th>
+                                        <th>Créditos</th>
+                                        <th>Horas Teóricas</th>
+                                        <th>Horas Prácticas</th>
+                                        <th>Total Horas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for materia in grupo.materias %}
+                                    <tr>
+                                        <td><strong>{{ materia.codigo }}</strong></td>
+                                        <td>{{ materia.nombre }}</td>
+                                        <td class="text-center">
+                                            <span class="badge badge-primary" style="font-weight: bold; background-color: #007bff; color: #000;">{{ materia.creditos }}</span>
+                                        </td>
+                                        <td class="text-center"><strong>{{ materia.horas_teoricas }}</strong></td>
+                                        <td class="text-center"><strong>{{ materia.horas_practicas }}</strong></td>
+                                        <td class="text-center">
+                                            <strong>{{ materia.get_horas_totales() }}</strong>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <th colspan="2"><strong>TOTALES</strong></th>
+                                        <th class="text-center">
+                                            <strong>{{ grupo.materias|sum(attribute='creditos') }}</strong>
+                                        </th>
+                                        <th class="text-center">
+                                            <strong>{{ grupo.materias|sum(attribute='horas_teoricas') }}</strong>
+                                        </th>
+                                        <th class="text-center">
+                                            <strong>{{ grupo.materias|sum(attribute='horas_practicas') }}</strong>
+                                        </th>
+                                        <th class="text-center">
+                                            <strong>{{ grupo.materias|sum(attribute='horas_teoricas') + grupo.materias|sum(attribute='horas_practicas') }}</strong>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Este grupo no tiene materias asignadas aún. 
+                            <a href="{{ url_for('gestionar_materias_grupo', id=grupo.id) }}">Asignar materias ahora</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

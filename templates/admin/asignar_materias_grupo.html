@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Asignar Materias - Grupo {{ grupo.codigo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-book"></i> Asignar Materias al Grupo {{ grupo.codigo }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('gestionar_grupos') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> Información del Grupo</h5>
+                        <ul class="mb-0">
+                            <li><strong>Código:</strong> {{ grupo.codigo }}</li>
+                            <li><strong>Carrera:</strong> {{ grupo.get_carrera_nombre() }}</li>
+                            <li><strong>Cuatrimestre:</strong> {{ grupo.get_cuatrimestre_display() }}</li>
+                            <li><strong>Turno:</strong> {{ grupo.get_turno_display() }}</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="form-group">
+                            {{ form.materias.label(class="form-label") }}
+                            {{ form.materias(class="form-control" + (" is-invalid" if form.materias.errors else ""), size=15) }}
+                            {% if form.materias.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.materias.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                <i class="fas fa-hand-pointer"></i> Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples materias.
+                                <br>
+                                Solo se muestran las materias del cuatrimestre {{ grupo.cuatrimestre }} de la carrera {{ grupo.get_carrera_nombre() }}.
+                            </small>
+                        </div>
+                        
+                        {% if grupo.materias %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            <strong>Atención:</strong> Este grupo tiene {{ grupo.get_materias_count() }} materias asignadas actualmente. 
+                            Al guardar, se reemplazarán con las materias seleccionadas.
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group mt-4">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('ver_materias_grupo', id=grupo.id) }}" class="btn btn-info">
+                                <i class="fas fa-eye"></i> Ver Materias Actuales
+                            </a>
+                            <a href="{{ url_for('gestionar_grupos') }}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

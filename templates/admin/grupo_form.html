@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-{{ 'plus' if not grupo else 'edit' }}"></i> {{ titulo }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('gestionar_grupos') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.numero_grupo.label(class="form-label") }}
+                                    {{ form.numero_grupo(class="form-control" + (" is-invalid" if form.numero_grupo.errors else "")) }}
+                                    {% if form.numero_grupo.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.numero_grupo.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Ejemplo: 1, 2, 3, etc.
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.turno.label(class="form-label") }}
+                                    {{ form.turno(class="form-control" + (" is-invalid" if form.turno.errors else "")) }}
+                                    {% if form.turno.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.turno.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.carrera.label(class="form-label") }}
+                                    {{ form.carrera(class="form-control" + (" is-invalid" if form.carrera.errors else "")) }}
+                                    {% if form.carrera.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.carrera.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.cuatrimestre.label(class="form-label") }}
+                                    {{ form.cuatrimestre(class="form-control" + (" is-invalid" if form.cuatrimestre.errors else "")) }}
+                                    {% if form.cuatrimestre.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.cuatrimestre.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if grupo %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Código del grupo:</strong> {{ grupo.codigo }}
+                            <br>
+                            <small>El código se genera automáticamente como: {número}{turno}{código_carrera}{cuatrimestre}</small>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            El código del grupo se generará automáticamente como: {número}{turno}{código_carrera}{cuatrimestre}
+                            <br>
+                            <small>Ejemplo: 1MSC1 = Grupo 1, Matutino, Sistemas Computacionales, Cuatrimestre 1</small>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group mt-4">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('gestionar_grupos') }}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

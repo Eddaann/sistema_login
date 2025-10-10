@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Materias de {{ profesor.get_nombre_completo() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-chalkboard-teacher me-2"></i>Materias de {{ profesor.get_nombre_completo() }}</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('gestionar_profesores_jefe') }}">Profesores</a></li>
+                            <li class="breadcrumb-item active">Ver Materias</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('gestionar_materias_profesor_jefe', id=profesor.id) }}" class="btn btn-primary me-2">
+                        <i class="fas fa-edit me-2"></i>Modificar Materias
+                    </a>
+                    <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+
+            <!-- Información del Profesor -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>{{ profesor.get_nombre_completo() }}</h5>
+                            <p class="text-muted mb-1">
+                                <i class="fas fa-envelope me-2"></i>{{ profesor.email }}
+                            </p>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-phone me-2"></i>{{ profesor.telefono or 'No especificado' }}
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <p class="mb-1">
+                                <span class="badge bg-info">{{ profesor.get_rol_display() }}</span>
+                            </p>
+                            <p class="mb-0">
+                                {% for carrera in profesor.carreras %}
+                                <span class="badge bg-secondary">{{ carrera.nombre }}</span>
+                                {% endfor %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ materias|length }}</h3>
+                            <p class="text-muted mb-0">Materias Asignadas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">{{ horarios_por_materia.values()|map('length')|sum }}</h3>
+                            <p class="text-muted mb-0">Horarios Programados</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-warning">{{ materias|map(attribute='creditos')|sum }}</h3>
+                            <p class="text-muted mb-0">Créditos Totales</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Materias por Cuatrimestre -->
+            {% if materias %}
+                {% set cuatrimestres = materias|map(attribute='cuatrimestre')|unique|list %}
+                {% for cuatrimestre in cuatrimestres|sort %}
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Cuatrimestre {{ cuatrimestre }}
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Materia</th>
+                                        <th>Créditos</th>
+                                        <th>Horas</th>
+                                        <th>Grupos Asignados</th>
+                                        <th>Horarios</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for materia in materias if materia.cuatrimestre == cuatrimestre %}
+                                    <tr>
+                                        <td><code>{{ materia.codigo }}</code></td>
+                                        <td><strong>{{ materia.nombre }}</strong></td>
+                                        <td>{{ materia.creditos }}</td>
+                                        <td>
+                                            <small class="text-muted">
+                                                T: {{ materia.horas_teoricas }}h | P: {{ materia.horas_practicas }}h
+                                            </small>
+                                        </td>
+                                        <td>
+                                            {% set grupos = horarios_por_materia[materia.id]|map(attribute='grupo')|unique|list if materia.id in horarios_por_materia else [] %}
+                                            {% if grupos %}
+                                                {% for grupo in grupos|sort %}
+                                                <span class="badge bg-info me-1">Grupo {{ grupo }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">Sin grupos</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if materia.id in horarios_por_materia and horarios_por_materia[materia.id] %}
+                                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#horarios-{{ materia.id }}">
+                                                    <i class="fas fa-clock me-1"></i>Ver {{ horarios_por_materia[materia.id]|length }} horarios
+                                                </button>
+                                            {% else %}
+                                                <span class="text-muted">Sin horarios</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if materia.id in horarios_por_materia and horarios_por_materia[materia.id] %}
+                                    <tr class="collapse" id="horarios-{{ materia.id }}">
+                                        <td colspan="6" class="bg-light">
+                                            <div class="p-3">
+                                                <h6 class="mb-3">Horarios de {{ materia.nombre }}:</h6>
+                                                <div class="row">
+                                                    {% for horario in horarios_por_materia[materia.id] %}
+                                                    <div class="col-md-6 mb-2">
+                                                        <div class="border rounded p-2">
+                                                            <strong>Grupo {{ horario.grupo }}</strong> - 
+                                                            <span class="text-primary">{{ horario.get_dia_display() }}</span>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-clock me-1"></i>{{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}
+                                                                {% if horario.aula %}
+                                                                | <i class="fas fa-door-open me-1"></i>{{ horario.aula }}
+                                                                {% endif %}
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Este profesor no tiene materias asignadas actualmente.
+                    <a href="{{ url_for('gestionar_materias_profesor_jefe', id=profesor.id) }}" class="alert-link">Asignar materias ahora</a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

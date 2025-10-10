@@ -73,7 +73,7 @@
                         {{ form.hidden_tag() }}
                         
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     {{ form.dia_semana.label(class="form-label") }}
                                     {{ form.dia_semana(class="form-control" + (" is-invalid" if form.dia_semana.errors else "")) }}
@@ -87,7 +87,22 @@
                                 </div>
                             </div>
                             
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    {{ form.grupo.label(class="form-label") }}
+                                    {{ form.grupo(class="form-control") }}
+                                    {% if form.grupo.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.grupo.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Permite tener múltiples grupos de la misma materia</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     {{ form.aula.label(class="form-label") }}
                                     {{ form.aula(class="form-control") }}

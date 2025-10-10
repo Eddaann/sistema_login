@@ -116,6 +116,20 @@
                                 {% endif %}
                             </div>
 
+                            <!-- Grupo -->
+                            <div class="col-md-6">
+                                <label for="grupo" class="form-label">Grupo <span class="text-danger">*</span></label>
+                                {{ form.grupo(class="form-select") }}
+                                {% if form.grupo.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.grupo.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">Permite tener múltiples grupos de la misma materia</div>
+                            </div>
+
                             <!-- Aula -->
                             <div class="col-md-6">
                                 <label for="aula" class="form-label">Aula</label>

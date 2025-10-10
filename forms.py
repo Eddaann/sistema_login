@@ -496,6 +496,15 @@ class EditarHorarioAcademicoForm(FlaskForm):
         ('sabado', 'Sábado')
     ], validators=[DataRequired()])
     
+    grupo = SelectField('Grupo', choices=[
+        ('A', 'Grupo A'),
+        ('B', 'Grupo B'),
+        ('C', 'Grupo C'),
+        ('D', 'Grupo D'),
+        ('E', 'Grupo E'),
+        ('F', 'Grupo F')
+    ], validators=[DataRequired()], default='A')
+    
     aula = StringField('Aula', validators=[Length(max=20, message='Máximo 20 caracteres')])
     
     submit = SubmitField('Guardar Cambios')
@@ -796,3 +805,104 @@ class EliminarUsuarioForm(FlaskForm):
         """Validar que se haya escrito exactamente "ELIMINAR" """
         if confirmacion.data != 'ELIMINAR':
             raise ValidationError('Debe escribir exactamente "ELIMINAR" para confirmar la eliminación.')
+
+class AsignarMateriasProfesorForm(FlaskForm):
+    """Formulario para asignar materias a un profesor"""
+    materias = SelectMultipleField('Materias', coerce=int, validators=[
+        DataRequired(message='Debe seleccionar al menos una materia')
+    ])
+    
+    submit = SubmitField('Asignar Materias')
+    
+    def __init__(self, profesor=None, *args, **kwargs):
+        super(AsignarMateriasProfesorForm, self).__init__(*args, **kwargs)
+        self.profesor = profesor
+        
+        # Obtener carreras del profesor
+        if profesor and profesor.carreras:
+            # Filtrar materias por las carreras del profesor
+            carrera_ids = [c.id for c in profesor.carreras]
+            materias_disponibles = Materia.query.filter(
+                Materia.carrera_id.in_(carrera_ids),
+                Materia.activa == True
+            ).order_by(Materia.cuatrimestre, Materia.nombre).all()
+        else:
+            # Si no tiene carreras, mostrar todas las materias activas
+            materias_disponibles = Materia.query.filter_by(activa=True).order_by(
+                Materia.cuatrimestre, Materia.nombre
+            ).all()
+        
+        # Crear opciones agrupadas por cuatrimestre
+        self.materias.choices = [
+            (m.id, f"Cuatri {m.cuatrimestre} - {m.codigo}: {m.nombre} ({m.get_carrera_codigo()})")
+            for m in materias_disponibles
+        ]
+
+class GrupoForm(FlaskForm):
+    """Formulario para crear/editar grupos"""
+    numero_grupo = IntegerField('Número de Grupo', validators=[
+        DataRequired(message='El número de grupo es requerido'),
+        NumberRange(min=1, max=99, message='El número debe estar entre 1 y 99')
+    ])
+    
+    turno = SelectField('Turno', choices=[
+        ('', 'Seleccione un turno'),
+        ('M', 'Matutino'),
+        ('V', 'Vespertino')
+    ], validators=[DataRequired(message='Debe seleccionar un turno')])
+    
+    carrera = SelectField('Carrera', coerce=int, validators=[DataRequired(message='Debe seleccionar una carrera')])
+    
+    cuatrimestre = SelectField('Cuatrimestre', choices=[
+        (-1, 'Seleccione un cuatrimestre'),
+        (0, 'Propedéutico (0)'),
+        (1, '1er Cuatrimestre'),
+        (2, '2do Cuatrimestre'),
+        (3, '3er Cuatrimestre'),
+        (4, '4to Cuatrimestre'),
+        (5, '5to Cuatrimestre'),
+        (6, '6to Cuatrimestre'),
+        (7, '7mo Cuatrimestre'),
+        (8, '8vo Cuatrimestre'),
+        (9, '9no Cuatrimestre'),
+        (10, '10mo Cuatrimestre')
+    ], coerce=int, validators=[DataRequired(message='Debe seleccionar un cuatrimestre')])
+    
+    submit = SubmitField('Guardar Grupo')
+    
+    def __init__(self, *args, **kwargs):
+        super(GrupoForm, self).__init__(*args, **kwargs)
+        # Cargar carreras activas
+        from models import Carrera
+        carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
+        self.carrera.choices = [(0, 'Seleccione una carrera')] + [
+            (c.id, f"{c.codigo} - {c.nombre}") for c in carreras
+        ]
+
+class AsignarMateriasGrupoForm(FlaskForm):
+    """Formulario para asignar materias a un grupo"""
+    materias = SelectMultipleField('Materias', coerce=int, validators=[
+        DataRequired(message='Debe seleccionar al menos una materia')
+    ])
+    submit = SubmitField('Guardar Materias')
+    
+    def __init__(self, grupo=None, *args, **kwargs):
+        super(AsignarMateriasGrupoForm, self).__init__(*args, **kwargs)
+        
+        from models import Materia
+        
+        if grupo:
+            # Filtrar materias por carrera y cuatrimestre del grupo
+            materias_disponibles = Materia.query.filter(
+                Materia.carrera_id == grupo.carrera_id,
+                Materia.cuatrimestre == grupo.cuatrimestre,
+                Materia.activa == True
+            ).order_by(Materia.codigo).all()
+        else:
+            materias_disponibles = []
+        
+        # Crear opciones
+        self.materias.choices = [
+            (m.id, f"{m.codigo} - {m.nombre} ({m.creditos} créditos)")
+            for m in materias_disponibles
+        ]

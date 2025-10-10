@@ -12,6 +12,18 @@ user_carreras = db.Table('user_carreras',
     db.Column('carrera_id', db.Integer, db.ForeignKey('carrera.id'), primary_key=True)
 )
 
+# Tabla intermedia para relación many-to-many entre profesores y materias
+profesor_materias = db.Table('profesor_materias',
+    db.Column('profesor_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('materia_id', db.Integer, db.ForeignKey('materia.id'), primary_key=True)
+)
+
+# Tabla intermedia para relación many-to-many entre grupos y materias
+grupo_materias = db.Table('grupo_materias',
+    db.Column('grupo_id', db.Integer, db.ForeignKey('grupo.id'), primary_key=True),
+    db.Column('materia_id', db.Integer, db.ForeignKey('materia.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     """Modelo de usuario con diferentes roles"""
     id = db.Column(db.Integer, primary_key=True)
@@ -32,6 +44,9 @@ class User(UserMixin, db.Model):
     
     # Relación many-to-many con carreras (para profesores y jefes de carrera)
     carreras = db.relationship('Carrera', secondary=user_carreras, backref=db.backref('usuarios', lazy=True))
+    
+    # Relación many-to-many con materias (para profesores - materias que imparten)
+    materias = db.relationship('Materia', secondary='profesor_materias', backref=db.backref('profesores', lazy=True))
     
     # Campo específico para jefes de carrera (una carrera asignada)
     carrera_id = db.Column(db.Integer, db.ForeignKey('carrera.id'))
@@ -496,6 +511,67 @@ class Materia(db.Model):
     def __repr__(self):
         return f'<Materia {self.codigo} - {self.nombre}>'
 
+class Grupo(db.Model):
+    """Modelo para gestionar grupos académicos"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Información del grupo
+    codigo = db.Column(db.String(20), nullable=False, unique=True)  # Ej: "1MSC1" (Grupo 1, Matutino, Sistemas, Cuatrimestre 1)
+    numero_grupo = db.Column(db.Integer, nullable=False)  # 1, 2, 3, etc.
+    turno = db.Column(db.String(1), nullable=False)  # 'M' = Matutino, 'V' = Vespertino
+    cuatrimestre = db.Column(db.Integer, nullable=False)  # 1, 2, 3, etc.
+    
+    # Relaciones
+    carrera_id = db.Column(db.Integer, db.ForeignKey('carrera.id'), nullable=False)
+    carrera = db.relationship('Carrera', backref=db.backref('grupos', lazy=True))
+    
+    # Relación many-to-many con materias
+    materias = db.relationship('Materia', secondary='grupo_materias', backref=db.backref('grupos', lazy=True))
+    
+    # Metadatos
+    activo = db.Column(db.Boolean, default=True)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    creado_por = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relación con el usuario que lo creó
+    creador = db.relationship('User', backref=db.backref('grupos_creados', lazy=True))
+    
+    def __init__(self, numero_grupo, turno, carrera_id, cuatrimestre, creado_por=None):
+        self.numero_grupo = numero_grupo
+        self.turno = turno.upper()
+        self.carrera_id = carrera_id
+        self.cuatrimestre = cuatrimestre
+        self.creado_por = creado_por
+        # Generar código automáticamente
+        self.codigo = self.generar_codigo()
+    
+    def generar_codigo(self):
+        """Generar código del grupo automáticamente: {numero}{turno}{carrera_codigo}{cuatrimestre}"""
+        from models import Carrera
+        carrera = Carrera.query.get(self.carrera_id)
+        if carrera:
+            return f"{self.numero_grupo}{self.turno}{carrera.codigo}{self.cuatrimestre}"
+        return f"{self.numero_grupo}{self.turno}XX{self.cuatrimestre}"
+    
+    def get_turno_display(self):
+        """Obtener nombre completo del turno"""
+        return 'Matutino' if self.turno == 'M' else 'Vespertino'
+    
+    def get_carrera_nombre(self):
+        """Obtener nombre de la carrera"""
+        return self.carrera.nombre if self.carrera else 'Carrera no encontrada'
+    
+    def get_materias_count(self):
+        """Obtener cantidad de materias asignadas"""
+        return len(self.materias)
+    
+    def get_cuatrimestre_display(self):
+        """Obtener nombre del cuatrimestre para mostrar"""
+        return f"Cuatrimestre {self.cuatrimestre}"
+    
+    def __repr__(self):
+        return f'<Grupo {self.codigo}>'
+
 class HorarioAcademico(db.Model):
     """Modelo para gestionar horarios académicos generados (asignaciones profesor-materia-horario)"""
     id = db.Column(db.Integer, primary_key=True)
@@ -507,6 +583,7 @@ class HorarioAcademico(db.Model):
     
     # Información adicional
     dia_semana = db.Column(db.String(10), nullable=False)  # 'lunes', 'martes', etc.
+    grupo = db.Column(db.String(10), nullable=False, default='A')  # 'A', 'B', 'C', etc.
     aula = db.Column(db.String(20))  # Ej: "A101", "Lab1", etc.
     periodo_academico = db.Column(db.String(20))  # Ej: "2025 - 2025", "2025 - 2026"
     
@@ -521,12 +598,13 @@ class HorarioAcademico(db.Model):
     horario = db.relationship('Horario', backref=db.backref('horarios_academicos', lazy=True))
     creador = db.relationship('User', foreign_keys=[creado_por], backref=db.backref('horarios_creados_academicos', lazy=True))
     
-    def __init__(self, profesor_id, materia_id, horario_id, dia_semana, aula=None, 
+    def __init__(self, profesor_id, materia_id, horario_id, dia_semana, grupo='A', aula=None, 
                  periodo_academico=None, creado_por=None):
         self.profesor_id = profesor_id
         self.materia_id = materia_id
         self.horario_id = horario_id
         self.dia_semana = dia_semana.lower()
+        self.grupo = grupo.upper()
         self.aula = aula
         # Si no se proporciona periodo_academico, calcularlo basado en la materia
         if periodo_academico is None and materia_id:
@@ -575,6 +653,11 @@ class HorarioAcademico(db.Model):
         """Obtener código de la materia"""
         return self.materia.codigo if self.materia else 'N/A'
     
+    def get_materia_codigo_grupo(self):
+        """Obtener código de la materia con grupo"""
+        codigo = self.materia.codigo if self.materia else 'N/A'
+        return f"{codigo} - Grupo {self.grupo}"
+    
     def get_turno_display(self):
         """Obtener turno del horario"""
         return self.horario.get_turno_display() if self.horario else 'N/A'
@@ -594,7 +677,7 @@ class HorarioAcademico(db.Model):
         return self.periodo_academico or 'No especificado'
     
     def __repr__(self):
-        return f'<HorarioAcademico {self.get_materia_codigo()} - {self.get_profesor_nombre()} - {self.get_dia_display()} {self.get_hora_inicio_str()}>'
+        return f'<HorarioAcademico {self.get_materia_codigo()} Grupo {self.grupo} - {self.get_profesor_nombre()} - {self.get_dia_display()} {self.get_hora_inicio_str()}>'
 
 class DisponibilidadProfesor(db.Model):
     """Modelo para gestionar la disponibilidad de profesores"""
