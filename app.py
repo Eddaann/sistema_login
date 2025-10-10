@@ -12,7 +12,7 @@ from utils import procesar_archivo_profesores, generar_pdf_profesores, procesar_
 from datetime import time, datetime
 import os
 import pandas as pd
-from io import BytesIO
+from io import BytesIO, StringIO
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -1211,35 +1211,31 @@ def exportar_profesores():
     try:
         # Obtener filtros de la URL
         carrera_id = request.args.get('carrera_id', type=int)
-        tipo_profesor = request.args.get('tipo_profesor')
+        incluir_contacto = request.args.get('incluir_contacto', 'si') == 'si'
         
-        # Query para profesores con filtros
-        query = User.query.filter(
-            User.rol.in_(['profesor_completo', 'profesor_asignatura']),
-            User.activo == True
-        )
+        # Generar PDF usando la función de utils
+        from utils import generar_pdf_profesores
+        pdf_buffer = generar_pdf_profesores(carrera_id=carrera_id, incluir_contacto=incluir_contacto)
         
-        if carrera_id:
-            query = query.filter(User.carrera_id == carrera_id)
-        
-        if tipo_profesor:
-            query = query.filter(User.rol == tipo_profesor)
-        
-        profesores = query.order_by(User.apellido, User.nombre).all()
-        
-        # Generar PDF
-        nombre_carrera = None
+        # Crear nombre del archivo
         if carrera_id:
             carrera = Carrera.query.get(carrera_id)
-            nombre_carrera = carrera.nombre if carrera else None
+            nombre_archivo = f'profesores_{carrera.codigo if carrera else "carrera"}_{datetime.now().strftime("%Y%m%d")}.pdf'
+        else:
+            nombre_archivo = f'profesores_{datetime.now().strftime("%Y%m%d")}.pdf'
         
-        archivo_pdf = generar_pdf_profesores(profesores, nombre_carrera, tipo_profesor)
-        
-        return send_file(archivo_pdf, as_attachment=True, download_name=f'profesores_{archivo_pdf.split("/")[-1]}')
+        return send_file(
+            BytesIO(pdf_buffer),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=nombre_archivo
+        )
         
     except Exception as e:
         flash('Error al generar el PDF. Inténtalo de nuevo.', 'error')
         print(f"Error en exportar profesores: {e}")
+        import traceback
+        traceback.print_exc()
         return redirect(url_for('gestionar_profesores'))
 
 @app.route('/admin/profesores/<int:id>/toggle-estado', methods=['POST'])
@@ -1620,9 +1616,20 @@ def agregar_usuario():
             apellido=form.apellido.data,
             rol=form.rol.data,
             telefono=form.telefono.data,
-            carrera_id=int(form.carrera.data) if form.carrera.data else None,
             activo=form.activo.data
         )
+        
+        # Asignar carrera según el rol
+        if form.rol.data == 'jefe_carrera':
+            # Para jefe de carrera: usar carrera_id (relación one-to-one)
+            nuevo_usuario.carrera_id = int(form.carrera.data) if form.carrera.data else None
+        elif form.rol.data in ['profesor_completo', 'profesor_asignatura']:
+            # Para profesores: usar carreras (relación many-to-many)
+            if form.carrera.data:
+                from models import Carrera
+                carrera = Carrera.query.get(int(form.carrera.data))
+                if carrera:
+                    nuevo_usuario.carreras = [carrera]
 
         try:
             db.session.add(nuevo_usuario)
@@ -1659,8 +1666,33 @@ def editar_usuario(id):
         usuario.apellido = form.apellido.data
         usuario.rol = form.rol.data
         usuario.telefono = form.telefono.data
-        usuario.carrera_id = int(form.carrera.data) if form.carrera.data else None
         usuario.activo = form.activo.data
+        
+        # Limpiar carrera_id si cambia de jefe_carrera a otro rol
+        if rol_anterior == 'jefe_carrera' and usuario.rol != 'jefe_carrera':
+            usuario.carrera_id = None
+        
+        # Asignar carrera según el nuevo rol
+        if usuario.rol == 'jefe_carrera':
+            # Para jefe de carrera: usar carrera_id (relación one-to-one)
+            usuario.carrera_id = int(form.carrera.data) if form.carrera.data else None
+            # Limpiar carreras many-to-many si existían
+            usuario.carreras = []
+        elif usuario.rol in ['profesor_completo', 'profesor_asignatura']:
+            # Para profesores: usar carreras (relación many-to-many)
+            from models import Carrera
+            if form.carrera.data:
+                carrera = Carrera.query.get(int(form.carrera.data))
+                if carrera:
+                    usuario.carreras = [carrera]
+            else:
+                usuario.carreras = []
+            # Limpiar carrera_id si existía
+            usuario.carrera_id = None
+        else:
+            # Para admin u otros roles: limpiar ambas relaciones
+            usuario.carrera_id = None
+            usuario.carreras = []
 
         # Si se cambió de jefe de carrera a otro rol, liberar la carrera
         if rol_anterior == 'jefe_carrera' and usuario.rol != 'jefe_carrera' and carrera_anterior:
@@ -2517,8 +2549,8 @@ def exportar_reportes_csv():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
 
-    # Crear datos para CSV
-    buffer = BytesIO()
+    # Crear datos para CSV usando StringIO
+    buffer = StringIO()
 
     # Escribir estadísticas generales
     writer = csv.writer(buffer)
@@ -2569,12 +2601,16 @@ def exportar_reportes_csv():
             profesores_carrera,
             materias_carrera,
             horarios_carrera,
-            ".1f"
+            f"{cobertura:.1f}"
         ])
 
+    # Convertir StringIO a BytesIO para send_file
     buffer.seek(0)
+    byte_buffer = BytesIO(buffer.getvalue().encode('utf-8-sig'))  # utf-8-sig para BOM (Excel compatibility)
+    byte_buffer.seek(0)
+    
     return send_file(
-        buffer,
+        byte_buffer,
         as_attachment=True,
         download_name=f'reporte_sistema_{datetime.now().strftime("%Y%m%d_%H%M")}.csv',
         mimetype='text/csv'

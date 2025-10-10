@@ -155,6 +155,8 @@ def generar_pdf_profesores(carrera_id=None, incluir_contacto=True):
     """
     Generar PDF con lista de profesores
     """
+    from models import User, Carrera
+    
     # Crear buffer para el PDF
     buffer = io.BytesIO()
     
@@ -186,7 +188,7 @@ def generar_pdf_profesores(carrera_id=None, incluir_contacto=True):
     # Título
     if carrera_id:
         carrera = Carrera.query.get(carrera_id)
-        titulo = f"Lista de Profesores - {carrera.nombre}"
+        titulo = f"Lista de Profesores - {carrera.nombre if carrera else 'Carrera'}"
     else:
         titulo = "Lista de Profesores - Todas las Carreras"
     
@@ -204,8 +206,12 @@ def generar_pdf_profesores(carrera_id=None, incluir_contacto=True):
         User.activo == True
     )
     
+    # Filtrar por carrera si se especifica
     if carrera_id:
-        query = query.filter(User.carrera_id == carrera_id)
+        carrera = Carrera.query.get(carrera_id)
+        if carrera:
+            # Filtrar profesores que tengan esta carrera (many-to-many)
+            query = query.filter(User.carreras.contains(carrera))
     
     profesores = query.order_by(User.apellido, User.nombre).all()
     
@@ -216,13 +222,20 @@ def generar_pdf_profesores(carrera_id=None, incluir_contacto=True):
         if not carrera_id:
             profesores_por_carrera = {}
             for profesor in profesores:
-                carrera_nombre = profesor.get_carrera_nombre()
-                if carrera_nombre not in profesores_por_carrera:
-                    profesores_por_carrera[carrera_nombre] = []
-                profesores_por_carrera[carrera_nombre].append(profesor)
+                # Obtener todas las carreras del profesor
+                if profesor.carreras:
+                    for carrera in profesor.carreras:
+                        if carrera.nombre not in profesores_por_carrera:
+                            profesores_por_carrera[carrera.nombre] = []
+                        if profesor not in profesores_por_carrera[carrera.nombre]:
+                            profesores_por_carrera[carrera.nombre].append(profesor)
+                else:
+                    if 'Sin carrera' not in profesores_por_carrera:
+                        profesores_por_carrera['Sin carrera'] = []
+                    profesores_por_carrera['Sin carrera'].append(profesor)
             
             # Generar tabla para cada carrera
-            for carrera_nombre, lista_profesores in profesores_por_carrera.items():
+            for carrera_nombre, lista_profesores in sorted(profesores_por_carrera.items()):
                 elements.append(Paragraph(carrera_nombre, heading_style))
                 elements.append(Spacer(1, 6))
                 
