@@ -31,12 +31,15 @@
                                         <th>Cuatrimestre</th>
                                         <th>Turno</th>
                                         <th>Materias</th>
+                                        <th>Profesores</th>
+                                        <th>Completitud</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for grupo in grupos %}
+                                    {% set resumen = grupo.get_resumen_completo() %}
                                     <tr>
                                         <td><strong>{{ grupo.codigo }}</strong></td>
                                         <td>{{ grupo.get_carrera_nombre() }}</td>
@@ -59,18 +62,50 @@
                                         <td>
                                             <span class="badge badge-primary" style="position: relative; padding-left: 24px; border-radius: 12px; font-weight: bold; background-color: #007bff; color: white;">
                                                 <i class="fas fa-circle" style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 8px; color: white;"></i>
-                                                {{ grupo.get_materias_count() }} materias
+                                                <i class="fas fa-book"></i>
+                                                {{ resumen.materias_count }} materias
                                             </span>
+                                            {% if resumen.materias_sin_profesor > 0 %}
+                                            <br><small class="text-danger">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                {{ resumen.materias_sin_profesor }} sin profesor
+                                            </small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-secondary" style="position: relative; padding-left: 24px; border-radius: 12px; font-weight: bold; background-color: #6c757d; color: white;">
+                                                <i class="fas fa-circle" style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 8px; color: white;"></i>
+                                                <i class="fas fa-chalkboard-teacher"></i>
+                                                {{ resumen.profesores_count }} profesores
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="progress mb-1" style="height: 20px;">
+                                                <div class="progress-bar bg-{{ resumen.estado.clase }}" 
+                                                     role="progressbar" 
+                                                     aria-valuenow="{{ resumen.completitud }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100"
+                                                     data-width="{{ resumen.completitud }}">
+                                                    {{ resumen.completitud }}%
+                                                </div>
+                                            </div>
+                                            <small class="text-{{ resumen.estado.clase }}">
+                                                <i class="fas fa-circle"></i>
+                                                {{ resumen.estado.texto }}
+                                            </small>
                                         </td>
                                         <td>
                                             {% if grupo.activo %}
                                             <span class="badge badge-success" style="position: relative; padding-left: 24px; border-radius: 12px; font-weight: bold; background-color: #28a745; color: white;">
                                                 <i class="fas fa-circle" style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 8px; color: white;"></i>
+                                                <i class="fas fa-check"></i>
                                                 Activo
                                             </span>
                                             {% else %}
                                             <span class="badge badge-secondary" style="position: relative; padding-left: 24px; border-radius: 12px; font-weight: bold; background-color: #6c757d; color: white;">
                                                 <i class="fas fa-circle" style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 8px; color: white;"></i>
+                                                <i class="fas fa-times"></i>
                                                 Inactivo
                                             </span>
                                             {% endif %}
@@ -112,4 +147,16 @@
         </div>
     </div>
 </div>
+
+<script>
+// Establecer el ancho de las barras de progreso después de que se cargue la página
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-width]');
+    progressBars.forEach(function(bar) {
+        const width = bar.getAttribute('data-width');
+        bar.style.width = width + '%';
+    });
+});
+</script>
+
 {% endblock %}
