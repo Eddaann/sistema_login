@@ -1727,14 +1727,13 @@ def inject_user_counts():
 @app.route('/admin/horarios-academicos')
 @login_required
 def gestionar_horarios_academicos():
-    """Gestión de horarios académicos generados"""
+    """Gestión de horarios académicos generados - Vista por Grupos"""
     if not current_user.is_admin():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
 
     # Obtener filtros
     carrera_id = request.args.get('carrera', type=int)
-    periodo_academico = request.args.get('periodo', '2025-1')
 
     # Query base
     query = HorarioAcademico.query.filter_by(activo=True)
@@ -1743,30 +1742,56 @@ def gestionar_horarios_academicos():
         # Filtrar por carrera a través de la materia
         query = query.join(HorarioAcademico.materia).filter(Materia.carrera_id == carrera_id)
 
-    if periodo_academico:
-        query = query.filter(HorarioAcademico.periodo_academico == periodo_academico)
+    # Obtener todos los horarios
+    horarios_academicos = query.join(HorarioAcademico.horario).all()
 
-    horarios_academicos = query.order_by(
-        HorarioAcademico.dia_semana,
-        HorarioAcademico.horario_id
-    ).all()
+    # Agrupar horarios por grupo
+    grupos_con_horarios = {}
+    
+    for horario in horarios_academicos:
+        # Buscar el grupo al que pertenece esta materia
+        grupos_materia = horario.materia.grupos
+        
+        if grupos_materia:
+            for grupo in grupos_materia:
+                # Filtrar por carrera si se especifica
+                if carrera_id and grupo.carrera_id != carrera_id:
+                    continue
+                    
+                grupo_key = grupo.id
+                
+                if grupo_key not in grupos_con_horarios:
+                    grupos_con_horarios[grupo_key] = {
+                        'grupo': grupo,
+                        'horarios': []
+                    }
+                
+                grupos_con_horarios[grupo_key]['horarios'].append(horario)
+    
+    # Ordenar los horarios de cada grupo por día y hora
+    for grupo_data in grupos_con_horarios.values():
+        grupo_data['horarios'].sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
+    # Convertir a lista ordenada por código de grupo
+    grupos_lista = sorted(grupos_con_horarios.values(), key=lambda x: x['grupo'].codigo)
 
     # Obtener datos para filtros
     carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
 
     # Estadísticas
-    total_horarios = len(horarios_academicos)
-    profesores_unicos = len(set(h.profesor_id for h in horarios_academicos)) if horarios_academicos else 0
-    materias_unicas = len(set(h.materia_id for h in horarios_academicos)) if horarios_academicos else 0
+    total_grupos = len(grupos_lista)
+    total_horarios = sum(len(g['horarios']) for g in grupos_lista)
+    profesores_unicos = len(set(h.profesor_id for g in grupos_lista for h in g['horarios']))
+    materias_unicas = len(set(h.materia_id for g in grupos_lista for h in g['horarios']))
 
     return render_template('admin/horarios_academicos.html',
-                         horarios_academicos=horarios_academicos,
+                         grupos_con_horarios=grupos_lista,
                          carreras=carreras,
+                         total_grupos=total_grupos,
                          total_horarios=total_horarios,
                          profesores_unicos=profesores_unicos,
                          materias_unicas=materias_unicas,
-                         filtro_carrera=carrera_id,
-                         filtro_periodo=periodo_academico)
+                         filtro_carrera=carrera_id)
 
 @app.route('/admin/horarios-academicos/generar', methods=['GET', 'POST'])
 @login_required
@@ -1779,25 +1804,33 @@ def generar_horarios_academicos():
     form = GenerarHorariosForm()
     resultado = None
 
-    # Cargar carreras activas
-    carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
-    form.carrera.choices = [(str(c.id), c.nombre) for c in carreras]
+    # Cargar grupos activos
+    grupos = Grupo.query.filter_by(activo=True).order_by(Grupo.codigo).all()
+    form.grupo_id.choices = [(0, 'Seleccione un grupo')] + [
+        (g.id, f"{g.codigo} - {g.get_carrera_nombre()} - Cuatri {g.cuatrimestre} - {g.get_turno_display()}") 
+        for g in grupos
+    ]
 
     if form.validate_on_submit():
         from generador_horarios import generar_horarios_automaticos
         from datetime import datetime
 
-        # Calcular período académico basado en el ciclo
-        año_actual = datetime.now().year
-        ciclo = int(form.ciclo.data)
+        # Obtener el grupo seleccionado
+        grupo_id = form.grupo_id.data
         
-        # Definir período según ciclo escolar
-        if ciclo == 1:  # Ciclo 1: cuatrimestres 1,4,7,10
-            periodo_academico = f"{año_actual} - {año_actual}"
-        elif ciclo == 2:  # Ciclo 2: cuatrimestres 2,5,8
-            periodo_academico = f"{año_actual} - {año_actual}"
-        else:  # Ciclo 3: cuatrimestres 0,3,6,9
-            periodo_academico = f"{año_actual} - {año_actual + 1}"
+        if grupo_id == 0:
+            flash('Debe seleccionar un grupo válido.', 'error')
+            return render_template('admin/generar_horarios.html', form=form, resultado=resultado)
+        
+        grupo = Grupo.query.get(grupo_id)
+        
+        if not grupo:
+            flash('Grupo no encontrado.', 'error')
+            return render_template('admin/generar_horarios.html', form=form, resultado=resultado)
+
+        # Calcular período académico basado en la fecha actual
+        año_actual = datetime.now().year
+        periodo_academico = f"{año_actual} - {año_actual}"
 
         # Preparar días de la semana
         dias_semana = []
@@ -1819,11 +1852,9 @@ def generar_horarios_academicos():
             if form.sabado.data == 'si':
                 dias_semana.append('sabado')
 
-        # Generar horarios
+        # Generar horarios usando el nuevo enfoque basado en grupos
         resultado = generar_horarios_automaticos(
-            carrera_id=int(form.carrera.data),
-            cuatrimestre=int(form.cuatrimestre.data),
-            turno=form.turno.data,
+            grupo_id=grupo_id,
             dias_semana=dias_semana,
             periodo_academico=periodo_academico,
             creado_por=current_user.id
@@ -3001,6 +3032,24 @@ def exportar_reportes_csv():
 
 
 # ==========================================
+# FUNCIONES AUXILIARES PARA HORARIOS
+# ==========================================
+
+def obtener_dia_correcto(dia_semana):
+    """Convierte el día de la semana de minúsculas sin tilde a formato con tilde"""
+    dias_map = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    }
+    return dias_map.get(dia_semana, dia_semana.capitalize())
+
+
+# ==========================================
 # VISTA DE HORARIOS POR PROFESOR PARA ADMIN
 # ==========================================
 @app.route('/admin/horarios/profesores')
@@ -3011,12 +3060,26 @@ def admin_horario_profesores():
         return redirect(url_for('dashboard'))
 
     try:
-       
-        asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
         
         horarios_por_profesor = {}
+        
+        # Mapeo de días en minúsculas a días con tilde
+        dias_map = {
+            'lunes': 'Lunes',
+            'martes': 'Martes',
+            'miercoles': 'Miércoles',
+            'jueves': 'Jueves',
+            'viernes': 'Viernes',
+            'sabado': 'Sábado',
+            'domingo': 'Domingo'
+        }
+        
         for asignacion in asignaciones:
-           
             profesor_nombre = asignacion.profesor.get_nombre_completo()
             
             if profesor_nombre not in horarios_por_profesor:
@@ -3030,10 +3093,10 @@ def admin_horario_profesores():
                 f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
             )
             
-           
-            dia_capitalizado = asignacion.dia_semana.capitalize()
-            if dia_capitalizado in horarios_por_profesor[profesor_nombre]:
-                 horarios_por_profesor[profesor_nombre][dia_capitalizado].append(info_clase)
+            # Usar el mapeo para obtener el día con tilde
+            dia_correcto = dias_map.get(asignacion.dia_semana, asignacion.dia_semana.capitalize())
+            if dia_correcto in horarios_por_profesor[profesor_nombre]:
+                horarios_por_profesor[profesor_nombre][dia_correcto].append(info_clase)
 
     except Exception as e:
         flash(f'Error al cargar los horarios: {e}', 'danger')
@@ -3053,34 +3116,56 @@ def admin_horario_grupos():
         return redirect(url_for('dashboard'))
 
     try:
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
         
-        asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
         
-        horarios_por_materia = {}
+        horarios_por_grupo = {}
+        
+        # Mapeo de días en minúsculas a días con tilde
+        dias_map = {
+            'lunes': 'Lunes',
+            'martes': 'Martes',
+            'miercoles': 'Miércoles',
+            'jueves': 'Jueves',
+            'viernes': 'Viernes',
+            'sabado': 'Sábado',
+            'domingo': 'Domingo'
+        }
+        
         for asignacion in asignaciones:
-           
-            materia_nombre = asignacion.materia.nombre
+            # Buscar el grupo al que pertenece esta materia
+            grupos_materia = asignacion.materia.grupos
             
-            if materia_nombre not in horarios_por_materia:
-                horarios_por_materia[materia_nombre] = {
-                    'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
-                }
-            
-            info_clase = (
-                f"Prof: {asignacion.profesor.get_nombre_completo()}<br>"
-                f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
-            )
+            if grupos_materia:
+                # Tomar el primer grupo (una materia puede estar en varios grupos)
+                grupo = grupos_materia[0]
+                grupo_nombre = grupo.codigo
+                
+                if grupo_nombre not in horarios_por_grupo:
+                    horarios_por_grupo[grupo_nombre] = {
+                        'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
+                    }
+                
+                info_clase = (
+                    f"{asignacion.materia.nombre}<br>"
+                    f"Prof: {asignacion.profesor.get_nombre_completo()}<br>"
+                    f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
+                )
 
-            dia_capitalizado = asignacion.dia_semana.capitalize()
-            if dia_capitalizado in horarios_por_materia[materia_nombre]:
-                 horarios_por_materia[materia_nombre][dia_capitalizado].append(info_clase)
+                # Usar el mapeo para obtener el día con tilde
+                dia_correcto = dias_map.get(asignacion.dia_semana, asignacion.dia_semana.capitalize())
+                if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                    horarios_por_grupo[grupo_nombre][dia_correcto].append(info_clase)
 
     except Exception as e:
         flash(f'Error al cargar los horarios: {e}', 'danger')
-        horarios_por_materia = {}
+        horarios_por_grupo = {}
 
     
-    return render_template('admin/admin_horario_grupos.html', horarios_data=horarios_por_materia)
+    return render_template('admin/admin_horario_grupos.html', horarios_data=horarios_por_grupo)
 
 
 # ==========================================
@@ -3093,11 +3178,26 @@ def exportar_horarios_profesor_excel():
     if not current_user.is_admin():
         abort(403)
     
+    # Obtener horarios ordenados por día de semana y hora
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
     
-    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+    # Ordenar por día de semana (Lunes a Viernes) y hora
+    asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
     horarios_por_profesor = {}
+    
+    # Mapeo de días en minúsculas a días con tilde
+    dias_map = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    }
+    
     for a in asignaciones:
-      
         if not a.profesor or not a.materia or not a.horario:
             continue 
 
@@ -3106,9 +3206,11 @@ def exportar_horarios_profesor_excel():
             horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
         
         info = f"{a.materia.nombre}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-        dia = a.dia_semana.capitalize()
-        if dia in horarios_por_profesor[profesor_nombre]:
-             horarios_por_profesor[profesor_nombre][dia].append(info)
+        
+        # Usar el mapeo para obtener el día con tilde
+        dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+        if dia_correcto in horarios_por_profesor[profesor_nombre]:
+            horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
        
 
 
@@ -3137,11 +3239,26 @@ def exportar_horarios_profesor_pdf():
     if not current_user.is_admin():
         abort(403)
 
+    # Obtener horarios ordenados por día de semana y hora
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
     
-    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.profesor_id).all()
+    # Ordenar por día de semana (Lunes a Viernes) y hora
+    asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
     horarios_por_profesor = {}
+    
+    # Mapeo de días en minúsculas a días con tilde
+    dias_map = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    }
+    
     for a in asignaciones:
-        
         if not a.profesor or not a.materia or not a.horario:
             continue
 
@@ -3150,9 +3267,11 @@ def exportar_horarios_profesor_pdf():
             horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
 
         info = f"{a.materia.nombre}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-        dia = a.dia_semana.capitalize()
-        if dia in horarios_por_profesor[profesor_nombre]:
-            horarios_por_profesor[profesor_nombre][dia].append(info)
+        
+        # Usar el mapeo para obtener el día con tilde
+        dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+        if dia_correcto in horarios_por_profesor[profesor_nombre]:
+            horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
        
 
     styles = getSampleStyleSheet(); styleN = styles['BodyText']
@@ -3178,34 +3297,59 @@ def exportar_horarios_grupo_excel():
     if not current_user.is_admin():
         abort(403)
     
-    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
-    horarios_por_materia = {}
+    # Obtener horarios ordenados por día de semana y hora
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
+    
+    # Ordenar por día de semana (Lunes a Viernes) y hora
+    asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
+    horarios_por_grupo = {}
+    
+    # Mapeo de días en minúsculas a días con tilde
+    dias_map = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    }
+    
     for a in asignaciones:
-     
         if not a.profesor or not a.materia or not a.horario:
             continue
 
-        materia_nombre = a.materia.nombre
-        if materia_nombre not in horarios_por_materia:
-            horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+        # Buscar el grupo al que pertenece esta materia
+        grupos_materia = a.materia.grupos
         
-        info = f"Prof: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-        dia = a.dia_semana.capitalize()
-        if dia in horarios_por_materia[materia_nombre]:
-             horarios_por_materia[materia_nombre][dia].append(info)
+        if grupos_materia:
+            # Tomar el primer grupo
+            grupo = grupos_materia[0]
+            grupo_nombre = grupo.codigo
+            
+            if grupo_nombre not in horarios_por_grupo:
+                horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            
+            info = f"{a.materia.nombre}\nProf: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            
+            # Usar el mapeo para obtener el día con tilde
+            dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+            if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
        
 
-    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Horarios por Materia"
-    headers = ["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Horarios por Grupo"
+    headers = ["Grupo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
     ws.append(headers)
     for cell in ws[1]: cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
-    for materia, dias in horarios_por_materia.items():
-        ws.append([materia] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+    for grupo, dias in horarios_por_grupo.items():
+        ws.append([grupo] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
     for col_cells in ws.columns:
         ws.column_dimensions[col_cells[0].column_letter].width = 30
         for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
     buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='horarios_por_materia.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_grupo.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 # ==========================================
 # EXPORTAR HORARIOS POR GRUPO (PDF)
@@ -3217,29 +3361,53 @@ def exportar_horarios_grupo_pdf():
     if not current_user.is_admin():
         abort(403)
     
+    # Obtener horarios ordenados por día de semana y hora
+    asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
     
-    asignaciones = HorarioAcademico.query.filter_by(activo=True).order_by(HorarioAcademico.materia_id).all()
-    horarios_por_materia = {}
+    # Ordenar por día de semana (Lunes a Viernes) y hora
+    asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
+    horarios_por_grupo = {}
+    
+    # Mapeo de días en minúsculas a días con tilde
+    dias_map = {
+        'lunes': 'Lunes',
+        'martes': 'Martes',
+        'miercoles': 'Miércoles',
+        'jueves': 'Jueves',
+        'viernes': 'Viernes',
+        'sabado': 'Sábado',
+        'domingo': 'Domingo'
+    }
+    
     for a in asignaciones:
-       
         if not a.profesor or not a.materia or not a.horario:
             continue
         
-        materia_nombre = a.materia.nombre
-        if materia_nombre not in horarios_por_materia:
-            horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+        # Buscar el grupo al que pertenece esta materia
+        grupos_materia = a.materia.grupos
         
-        info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-        dia = a.dia_semana.capitalize()
-        if dia in horarios_por_materia[materia_nombre]:
-             horarios_por_materia[materia_nombre][dia].append(info)
+        if grupos_materia:
+            # Tomar el primer grupo
+            grupo = grupos_materia[0]
+            grupo_nombre = grupo.codigo
+            
+            if grupo_nombre not in horarios_por_grupo:
+                horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+            
+            info = f"{a.materia.nombre}<br/>Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            
+            # Usar el mapeo para obtener el día con tilde
+            dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+            if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
         
 
   
     styles = getSampleStyleSheet(); styleN = styles['BodyText']
-    data = [["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
-    for materia, dias in horarios_por_materia.items():
-        row_data = [Paragraph(materia, styleN)]
+    data = [["Grupo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+    for grupo, dias in horarios_por_grupo.items():
+        row_data = [Paragraph(grupo, styleN)]
         for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
         data.append(row_data)
     buffer = BytesIO()
@@ -3247,7 +3415,7 @@ def exportar_horarios_grupo_pdf():
     table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
     style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.green), ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke), ('GRID', (0,0), (-1,-1), 1, colors.black)])
     table.setStyle(style); doc.build([table]); buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='horarios_por_materia.pdf', mimetype='application/pdf')
+    return send_file(buffer, as_attachment=True, download_name='horarios_por_grupo.pdf', mimetype='application/pdf')
 
 
 # ===================================================================
@@ -3266,13 +3434,28 @@ def jefe_ver_horarios_profesores():
         return redirect(url_for('dashboard'))
 
     try:
-        
+        # Obtener horarios ordenados por día de semana y hora
         asignaciones = HorarioAcademico.query.join(Materia).filter(
             Materia.carrera_id == id_carrera,
             HorarioAcademico.activo == True
-        ).order_by(HorarioAcademico.profesor_id).all()
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
         
         horarios_por_profesor = {}
+        
+        # Mapeo de días en minúsculas a días con tilde
+        dias_map = {
+            'lunes': 'Lunes',
+            'martes': 'Martes',
+            'miercoles': 'Miércoles',
+            'jueves': 'Jueves',
+            'viernes': 'Viernes',
+            'sabado': 'Sábado',
+            'domingo': 'Domingo'
+        }
+        
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
             profesor_nombre = a.profesor.get_nombre_completo()
@@ -3280,9 +3463,11 @@ def jefe_ver_horarios_profesores():
                 horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
             
             info = f"{a.materia.nombre}<br/><small class='text-muted'>{a.materia.codigo}</small><br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_profesor[profesor_nombre]:
-                horarios_por_profesor[profesor_nombre][dia].append(info)
+            
+            # Usar el mapeo para obtener el día con tilde
+            dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+            if dia_correcto in horarios_por_profesor[profesor_nombre]:
+                horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
                 
     except Exception as e:
         flash(f"Error al cargar los horarios: {e}", "danger")
@@ -3303,28 +3488,56 @@ def jefe_ver_horarios_grupos():
         return redirect(url_for('dashboard'))
 
     try:
+        # Obtener horarios ordenados por día de semana y hora
         asignaciones = HorarioAcademico.query.join(Materia).filter(
             Materia.carrera_id == id_carrera,
             HorarioAcademico.activo == True
-        ).order_by(HorarioAcademico.materia_id).all()
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
 
-        horarios_por_materia = {}
+        horarios_por_grupo = {}
+        
+        # Mapeo de días en minúsculas a días con tilde
+        dias_map = {
+            'lunes': 'Lunes',
+            'martes': 'Martes',
+            'miercoles': 'Miércoles',
+            'jueves': 'Jueves',
+            'viernes': 'Viernes',
+            'sabado': 'Sábado',
+            'domingo': 'Domingo'
+        }
+        
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
-            materia_nombre = a.materia.nombre
-            if materia_nombre not in horarios_por_materia:
-                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
             
-            info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_materia[materia_nombre]:
-                horarios_por_materia[materia_nombre][dia].append(info)
+            # Buscar el grupo al que pertenece esta materia
+            grupos_materia = a.materia.grupos
+            
+            if grupos_materia:
+                # Tomar el primer grupo (filtrar solo grupos de esta carrera)
+                grupos_carrera = [g for g in grupos_materia if g.carrera_id == id_carrera]
+                if grupos_carrera:
+                    grupo = grupos_carrera[0]
+                    grupo_nombre = grupo.codigo
+                    
+                    if grupo_nombre not in horarios_por_grupo:
+                        horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+                    
+                    info = f"{a.materia.nombre}<br/>Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+                    
+                    # Usar el mapeo para obtener el día con tilde
+                    dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
+                    if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                        horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
                 
     except Exception as e:
         flash(f"Error al cargar los horarios: {e}", "danger")
-        horarios_por_materia = {}
+        horarios_por_grupo = {}
 
-    return render_template('jefe/jefe_horario_grupos.html', horarios_data=horarios_por_materia)
+    return render_template('jefe/jefe_horario_grupos.html', horarios_data=horarios_por_grupo)
 
 # --- Rutas de Exportación para Jefes ---
 
@@ -3336,7 +3549,15 @@ def exportar_jefe_horarios_profesor_excel():
     if not id_carrera: return redirect(url_for('dashboard'))
     
     try:
-        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id==id_carrera, 
+            HorarioAcademico.activo==True
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+        
         horarios_por_profesor = {}
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
@@ -3344,9 +3565,9 @@ def exportar_jefe_horarios_profesor_excel():
             if profesor_nombre not in horarios_por_profesor:
                 horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
             info = f"{a.materia.nombre}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_profesor[profesor_nombre]:
-                 horarios_por_profesor[profesor_nombre][dia].append(info)
+            dia_correcto = obtener_dia_correcto(a.dia_semana)
+            if dia_correcto in horarios_por_profesor[profesor_nombre]:
+                 horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
         
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -3374,7 +3595,15 @@ def exportar_jefe_horarios_profesor_pdf():
     if not id_carrera: return redirect(url_for('dashboard'))
     
     try:
-        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id==id_carrera,
+            HorarioAcademico.activo==True
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+        
         horarios_por_profesor = {}
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
@@ -3382,9 +3611,9 @@ def exportar_jefe_horarios_profesor_pdf():
             if profesor_nombre not in horarios_por_profesor:
                 horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
             info = f"{a.materia.nombre}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_profesor[profesor_nombre]:
-                 horarios_por_profesor[profesor_nombre][dia].append(info)
+            dia_correcto = obtener_dia_correcto(a.dia_semana)
+            if dia_correcto in horarios_por_profesor[profesor_nombre]:
+                 horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
     
         styles=getSampleStyleSheet(); styleN = styles['BodyText']
         data = [["Profesor", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
@@ -3411,30 +3640,49 @@ def exportar_jefe_horarios_grupo_excel():
     if not id_carrera: return redirect(url_for('dashboard'))
     
     try:
-        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
-        horarios_por_materia = {}
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id==id_carrera,
+            HorarioAcademico.activo==True
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+        
+        horarios_por_grupo = {}
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
-            materia_nombre = a.materia.nombre
-            if materia_nombre not in horarios_por_materia:
-                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
-            info = f"Prof: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_materia[materia_nombre]:
-                 horarios_por_materia[materia_nombre][dia].append(info)
+            
+            # Buscar el grupo al que pertenece esta materia
+            grupos_materia = a.materia.grupos
+            
+            if grupos_materia:
+                # Filtrar grupos de esta carrera
+                grupos_carrera = [g for g in grupos_materia if g.carrera_id == id_carrera]
+                if grupos_carrera:
+                    grupo = grupos_carrera[0]
+                    grupo_nombre = grupo.codigo
+                    
+                    if grupo_nombre not in horarios_por_grupo:
+                        horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+                    
+                    info = f"{a.materia.nombre}\nProf: {a.profesor.get_nombre_completo()}\n{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+                    dia_correcto = obtener_dia_correcto(a.dia_semana)
+                    if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                        horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
         
-        wb = openpyxl.Workbook(); ws = wb.active; ws.title = f"Horarios Materias {current_user.carrera.codigo}"
-        headers = ["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = f"Horarios Grupos {current_user.carrera.codigo}"
+        headers = ["Grupo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
         ws.append(headers)
         for cell in ws[1]: cell.font = Font(bold=True); cell.alignment = Alignment(horizontal='center')
-        for materia, dias in horarios_por_materia.items():
-            ws.append([materia] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
+        for grupo, dias in horarios_por_grupo.items():
+            ws.append([grupo] + ["\n\n".join(dias.get(dia, [])) for dia in headers[1:]])
         for col_cells in ws.columns:
             ws.column_dimensions[col_cells[0].column_letter].width = 30
             for cell in col_cells: cell.alignment = Alignment(wrap_text=True, vertical='top')
         
         buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name=f'horarios_materias_{current_user.carrera.codigo}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_grupos_{current_user.carrera.codigo}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         flash(f"Error al generar el archivo Excel: {e}", "danger")
         return redirect(url_for('jefe/jefe_ver_horarios_grupos'))
@@ -3447,22 +3695,41 @@ def exportar_jefe_horarios_grupo_pdf():
     if not id_carrera: return redirect(url_for('dashboard'))
     
     try:
-        asignaciones = HorarioAcademico.query.join(Materia).filter(Materia.carrera_id==id_carrera, HorarioAcademico.activo==True).all()
-        horarios_por_materia = {}
+        # Obtener horarios ordenados por día de semana y hora
+        asignaciones = HorarioAcademico.query.join(Materia).filter(
+            Materia.carrera_id==id_carrera,
+            HorarioAcademico.activo==True
+        ).all()
+        
+        # Ordenar por día de semana (Lunes a Viernes) y hora
+        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+        
+        horarios_por_grupo = {}
         for a in asignaciones:
             if not all([a.profesor, a.materia, a.horario]): continue
-            materia_nombre = a.materia.nombre
-            if materia_nombre not in horarios_por_materia:
-                horarios_por_materia[materia_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
-            info = f"Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            dia = a.dia_semana.capitalize()
-            if dia in horarios_por_materia[materia_nombre]:
-                 horarios_por_materia[materia_nombre][dia].append(info)
+            
+            # Buscar el grupo al que pertenece esta materia
+            grupos_materia = a.materia.grupos
+            
+            if grupos_materia:
+                # Filtrar grupos de esta carrera
+                grupos_carrera = [g for g in grupos_materia if g.carrera_id == id_carrera]
+                if grupos_carrera:
+                    grupo = grupos_carrera[0]
+                    grupo_nombre = grupo.codigo
+                    
+                    if grupo_nombre not in horarios_por_grupo:
+                        horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
+                    
+                    info = f"{a.materia.nombre}<br/>Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+                    dia_correcto = obtener_dia_correcto(a.dia_semana)
+                    if dia_correcto in horarios_por_grupo[grupo_nombre]:
+                        horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
 
         styles=getSampleStyleSheet(); styleN = styles['BodyText']
-        data = [["Materia", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
-        for materia, dias in horarios_por_materia.items():
-            row_data = [Paragraph(materia, styleN)]
+        data = [["Grupo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]]
+        for grupo, dias in horarios_por_grupo.items():
+            row_data = [Paragraph(grupo, styleN)]
             for dia in data[0][1:]: row_data.append(Paragraph("<br/><br/>".join(dias.get(dia, [])), styleN))
             data.append(row_data)
             
@@ -3471,7 +3738,7 @@ def exportar_jefe_horarios_grupo_pdf():
         table = Table(data, hAlign='CENTER', colWidths=[1.5*inch]*6)
         style = TableStyle([('BACKGROUND', (0,0), (-1,0), colors.green),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('GRID', (0,0), (-1,-1), 1, colors.black)])
         table.setStyle(style); doc.build([table]); buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name=f'horarios_materias_{current_user.carrera.codigo}.pdf', mimetype='application/pdf')
+        return send_file(buffer, as_attachment=True, download_name=f'horarios_grupos_{current_user.carrera.codigo}.pdf', mimetype='application/pdf')
     except Exception as e:
         flash(f"Error al generar el archivo PDF: {e}", "danger")
         return redirect(url_for('jefe/jefe_ver_horarios_grupos'))

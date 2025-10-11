@@ -21,7 +21,7 @@ class GeneradorHorariosOR:
     """Clase para generar horarios académicos automáticamente usando Google OR-Tools"""
 
     def __init__(self, carrera_id, cuatrimestre, turno='matutino', dias_semana=None,
-                 periodo_academico='2025-1', creado_por=None):
+                 periodo_academico='2025-1', creado_por=None, grupo_id=None):
         """
         Inicializar el generador de horarios con OR-Tools
 
@@ -32,6 +32,7 @@ class GeneradorHorariosOR:
             dias_semana: Lista de días de la semana ['lunes', 'martes', etc.]
             periodo_academico: Período académico (ej: '2025-1')
             creado_por: ID del usuario que genera los horarios
+            grupo_id: (Nuevo) ID del grupo - si se proporciona, se usarán las materias y profesores del grupo
         """
         if not ORTOOLS_AVAILABLE:
             raise ImportError("OR-Tools no está disponible. Use GeneradorHorariosSinOR como alternativa.")
@@ -42,12 +43,14 @@ class GeneradorHorariosOR:
         self.dias_semana = dias_semana or ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
         self.periodo_academico = periodo_academico
         self.creado_por = creado_por
+        self.grupo_id = grupo_id  # Nuevo parámetro
 
         # Datos del proceso
         self.profesores = []
         self.materias = []
         self.horarios = []
         self.disponibilidades = {}  # Cache de disponibilidades por profesor
+        self.grupo = None  # Objeto Grupo si se proporciona grupo_id
 
         # Modelo CP-SAT
         self.model = cp_model.CpModel()
@@ -62,21 +65,57 @@ class GeneradorHorariosOR:
 
     def cargar_datos(self):
         """Cargar datos necesarios para la generación"""
-        from models import DisponibilidadProfesor
+        from models import DisponibilidadProfesor, Grupo
 
-        # Cargar profesores de la carrera
-        self.profesores = User.query.filter(
-            User.carrera_id == self.carrera_id,
-            User.rol.in_(['profesor_completo', 'profesor_asignatura']),
-            User.activo == True
-        ).all()
+        # Si se proporciona grupo_id, usar los datos del grupo
+        if self.grupo_id:
+            self.grupo = Grupo.query.get(self.grupo_id)
+            if not self.grupo:
+                raise ValueError(f"No se encontró el grupo con ID {self.grupo_id}")
+            
+            # Obtener materias del grupo
+            self.materias = [m for m in self.grupo.materias if m.activa]
+            
+            # Obtener profesores que imparten esas materias (solo los activos)
+            profesores_set = set()
+            for materia in self.materias:
+                for profesor in materia.profesores:
+                    if profesor.activo:
+                        profesores_set.add(profesor)
+            self.profesores = list(profesores_set)
+            
+            print(f"📚 Cargando datos del grupo {self.grupo.codigo}:")
+            print(f"   - Carrera: {self.grupo.get_carrera_nombre()}")
+            print(f"   - Cuatrimestre: {self.grupo.cuatrimestre}")
+            print(f"   - Turno: {self.grupo.get_turno_display()}")
+            print(f"   - Materias asignadas: {len(self.materias)}")
+            print(f"   - Profesores asignados: {len(self.profesores)}")
+        else:
+            # Enfoque legacy: cargar por carrera y cuatrimestre
+            # Cargar profesores de la carrera
+            self.profesores = User.query.filter(
+                User.carrera_id == self.carrera_id,
+                User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+                User.activo == True
+            ).all()
 
-        # Cargar materias del cuatrimestre
-        self.materias = Materia.query.filter(
-            Materia.carrera_id == self.carrera_id,
-            Materia.cuatrimestre == self.cuatrimestre,
-            Materia.activa == True
-        ).all()
+            # Cargar materias del cuatrimestre
+            self.materias = Materia.query.filter(
+                Materia.carrera_id == self.carrera_id,
+                Materia.cuatrimestre == self.cuatrimestre,
+                Materia.activa == True
+            ).all()
+            
+            print(f"📚 Cargando datos (modo legacy):")
+            print(f"   - Carrera ID: {self.carrera_id}")
+            print(f"   - Cuatrimestre: {self.cuatrimestre}")
+
+        # Validaciones
+        if not self.profesores:
+            raise ValueError("❌ No hay profesores disponibles para esta carrera")
+        
+        if not self.materias:
+            raise ValueError("❌ No hay materias disponibles para este cuatrimestre")
 
         # Cargar horarios según el turno
         if self.turno == 'ambos':
@@ -86,6 +125,9 @@ class GeneradorHorariosOR:
                 turno=self.turno,
                 activo=True
             ).order_by(Horario.orden).all()
+
+        if not self.horarios:
+            raise ValueError(f"❌ No hay horarios configurados para el turno {self.turno}")
 
         # Cargar disponibilidades de profesores
         self.cargar_disponibilidades()
@@ -540,7 +582,7 @@ class GeneradorHorariosSinOR:
     """Generador de horarios que funciona sin OR-Tools como respaldo"""
     
     def __init__(self, carrera_id, cuatrimestre, turno='matutino', dias_semana=None,
-                 periodo_academico='2025-1', creado_por=None):
+                 periodo_academico='2025-1', creado_por=None, grupo_id=None):
         """Inicializar el generador de horarios sin OR-Tools"""
         self.carrera_id = carrera_id
         self.cuatrimestre = cuatrimestre
@@ -548,6 +590,7 @@ class GeneradorHorariosSinOR:
         self.dias_semana = dias_semana or ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
         self.periodo_academico = periodo_academico
         self.creado_por = creado_por
+        self.grupo_id = grupo_id  # Nuevo parámetro
         
         # Datos del proceso
         self.profesores = []
@@ -555,6 +598,7 @@ class GeneradorHorariosSinOR:
         self.horarios = []
         self.disponibilidades = {}
         self.horarios_generados = []
+        self.grupo = None  # Objeto Grupo si se proporciona grupo_id
         
         # Cache para evitar conflictos
         self.asignaciones_profesor = defaultdict(list)  # profesor_id -> [(horario_id, dia)]
@@ -562,21 +606,50 @@ class GeneradorHorariosSinOR:
     
     def cargar_datos(self):
         """Cargar datos necesarios para la generación"""
-        from models import DisponibilidadProfesor
+        from models import DisponibilidadProfesor, Grupo
 
-        # Cargar profesores de la carrera
-        self.profesores = User.query.filter(
-            User.carrera_id == self.carrera_id,
-            User.rol.in_(['profesor_completo', 'profesor_asignatura']),
-            User.activo == True
-        ).all()
+        # Si se proporciona grupo_id, usar los datos del grupo
+        if self.grupo_id:
+            self.grupo = Grupo.query.get(self.grupo_id)
+            if not self.grupo:
+                raise ValueError(f"No se encontró el grupo con ID {self.grupo_id}")
+            
+            # Obtener materias del grupo
+            self.materias = [m for m in self.grupo.materias if m.activa]
+            
+            # Obtener profesores que imparten esas materias (solo los activos)
+            profesores_set = set()
+            for materia in self.materias:
+                for profesor in materia.profesores:
+                    if profesor.activo:
+                        profesores_set.add(profesor)
+            self.profesores = list(profesores_set)
+            
+            print(f"📚 Cargando datos del grupo {self.grupo.codigo} (algoritmo respaldo):")
+            print(f"   - Materias asignadas: {len(self.materias)}")
+            print(f"   - Profesores asignados: {len(self.profesores)}")
+        else:
+            # Enfoque legacy: cargar por carrera y cuatrimestre
+            # Cargar profesores de la carrera
+            self.profesores = User.query.filter(
+                User.carrera_id == self.carrera_id,
+                User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+                User.activo == True
+            ).all()
 
-        # Cargar materias del cuatrimestre
-        self.materias = Materia.query.filter(
-            Materia.carrera_id == self.carrera_id,
-            Materia.cuatrimestre == self.cuatrimestre,
-            Materia.activa == True
-        ).all()
+            # Cargar materias del cuatrimestre
+            self.materias = Materia.query.filter(
+                Materia.carrera_id == self.carrera_id,
+                Materia.cuatrimestre == self.cuatrimestre,
+                Materia.activa == True
+            ).all()
+
+        # Validaciones
+        if not self.profesores:
+            raise ValueError("❌ No hay profesores disponibles")
+        
+        if not self.materias:
+            raise ValueError("❌ No hay materias disponibles")
 
         # Cargar horarios según el turno
         if self.turno == 'ambos':
@@ -689,17 +762,33 @@ class GeneradorHorariosSinOR:
         """Asignar materias a profesores usando algoritmo greedy"""
         materias_pendientes = list(self.materias)
         
+        print(f"\n📊 Iniciando asignación de {len(materias_pendientes)} materias")
+        print(f"👥 Profesores disponibles: {len(self.profesores)}")
+        for profesor in self.profesores:
+            print(f"   - {profesor.get_nombre_completo()}: {len(profesor.materias)} materias asignadas")
+        
         # Ordenar materias por horas requeridas (descendente) y por dificultad de asignación
         materias_pendientes.sort(key=lambda m: (-self.calcular_horas_semanales_materia(m), m.nombre))
         
+        materias_asignadas_exitosamente = 0
+        
         for materia in materias_pendientes:
-            print(f"📚 Asignando materia: {materia.nombre}")
+            print(f"\n📚 Procesando materia: {materia.nombre} (ID: {materia.id})")
+            print(f"   Horas requeridas: {self.calcular_horas_semanales_materia(materia)}")
             
             # Buscar profesores que pueden impartir esta materia
             profesores_disponibles = [p for p in self.profesores if materia in p.materias]
             
+            print(f"   Profesores que pueden impartir esta materia: {len(profesores_disponibles)}")
+            for p in profesores_disponibles:
+                print(f"      - {p.get_nombre_completo()}")
+            
             if not profesores_disponibles:
-                print(f"⚠️  No hay profesores disponibles para {materia.nombre}")
+                print(f"   ⚠️  No hay profesores disponibles para {materia.nombre}")
+                print(f"   📋 Verificando: esta materia está en las materias de los profesores?")
+                for profesor in self.profesores:
+                    materia_ids = [m.id for m in profesor.materias]
+                    print(f"      - {profesor.get_nombre_completo()}: materias {materia_ids}")
                 continue
             
             # Ordenar profesores por carga actual (ascendente)
@@ -708,14 +797,18 @@ class GeneradorHorariosSinOR:
             asignado = False
             for profesor in profesores_disponibles:
                 if self.asignar_materia_a_profesor(materia, profesor):
-                    print(f"✅ {materia.nombre} asignada a {profesor.get_nombre_completo()}")
+                    print(f"   ✅ {materia.nombre} asignada a {profesor.get_nombre_completo()}")
                     asignado = True
+                    materias_asignadas_exitosamente += 1
                     break
             
             if not asignado:
-                print(f"❌ No se pudo asignar {materia.nombre}")
+                print(f"   ❌ No se pudo asignar {materia.nombre}")
+                print(f"   📊 Resumen hasta ahora: {materias_asignadas_exitosamente}/{len(materias_pendientes)} materias asignadas")
                 return False
         
+        print(f"\n✅ Todas las materias fueron asignadas exitosamente!")
+        print(f"📊 Total: {materias_asignadas_exitosamente}/{len(materias_pendientes)} materias")
         return True
     
     def asignar_materia_a_profesor(self, materia, profesor):
@@ -872,16 +965,76 @@ class GeneradorHorariosSinOR:
         }
 
 
-def generar_horarios_automaticos(carrera_id, cuatrimestre, turno='matutino', dias_semana=None,
-                                periodo_academico='2025-1', creado_por=None):
+def generar_horarios_automaticos(grupo_id=None, dias_semana=None,
+                                periodo_academico='2025-1', creado_por=None,
+                                # Parámetros legacy (mantener compatibilidad)
+                                carrera_id=None, cuatrimestre=None, turno='matutino'):
     """
     Función principal para generar horarios académicos automáticamente
+    
+    NUEVO ENFOQUE (recomendado):
+        - grupo_id: ID del grupo que ya tiene materias, profesores y turno asignados
+        
+    ENFOQUE LEGACY (mantener compatibilidad):
+        - carrera_id, cuatrimestre, turno: Se usará si no se proporciona grupo_id
+    
     Usa OR-Tools si está disponible, sino usa algoritmo de respaldo
 
     Returns:
         dict: Resultado de la generación con estadísticas
     """
     try:
+        # Validar que se proporcione grupo_id o los parámetros legacy
+        if grupo_id is None and (carrera_id is None or cuatrimestre is None):
+            return {
+                'exito': False,
+                'mensaje': '❌ Debe proporcionar grupo_id o carrera_id/cuatrimestre',
+                'estadisticas': None,
+                'horarios_generados': [],
+                'algoritmo': None
+            }
+        
+        # Si se proporciona grupo_id, extraer los datos del grupo
+        if grupo_id is not None:
+            from models import Grupo
+            
+            grupo = Grupo.query.get(grupo_id)
+            if not grupo:
+                return {
+                    'exito': False,
+                    'mensaje': f'❌ No se encontró el grupo con ID {grupo_id}',
+                    'estadisticas': None,
+                    'horarios_generados': [],
+                    'algoritmo': None
+                }
+            
+            # Validar que el grupo tenga materias asignadas
+            if not grupo.materias:
+                return {
+                    'exito': False,
+                    'mensaje': f'❌ El grupo {grupo.codigo} no tiene materias asignadas. Debe asignar materias al grupo primero.',
+                    'estadisticas': None,
+                    'horarios_generados': [],
+                    'algoritmo': None
+                }
+            
+            # Validar que las materias tengan profesores asignados
+            materias_sin_profesor = grupo.get_materias_sin_profesor()
+            if materias_sin_profesor:
+                lista_materias = ', '.join([m.nombre for m in materias_sin_profesor])
+                return {
+                    'exito': False,
+                    'mensaje': f'❌ Hay materias sin profesor asignado: {lista_materias}. Debe asignar profesores a todas las materias del grupo.',
+                    'estadisticas': None,
+                    'horarios_generados': [],
+                    'algoritmo': None
+                }
+            
+            # Extraer datos del grupo
+            carrera_id = grupo.carrera_id
+            cuatrimestre = grupo.cuatrimestre
+            turno = 'matutino' if grupo.turno == 'M' else 'vespertino'
+        
         if ORTOOLS_AVAILABLE:
             # Usar OR-Tools si está disponible
             generador = GeneradorHorariosOR(
@@ -890,7 +1043,8 @@ def generar_horarios_automaticos(carrera_id, cuatrimestre, turno='matutino', dia
                 turno=turno,
                 dias_semana=dias_semana,
                 periodo_academico=periodo_academico,
-                creado_por=creado_por
+                creado_por=creado_por,
+                grupo_id=grupo_id  # Nuevo parámetro
             )
             return generador.generar_horarios()
         else:
@@ -901,11 +1055,15 @@ def generar_horarios_automaticos(carrera_id, cuatrimestre, turno='matutino', dia
                 turno=turno,
                 dias_semana=dias_semana,
                 periodo_academico=periodo_academico,
-                creado_por=creado_por
+                creado_por=creado_por,
+                grupo_id=grupo_id  # Nuevo parámetro
             )
             return generador.generar_horarios()
 
     except Exception as e:
+        import traceback
+        error_detalle = traceback.format_exc()
+        print(f"ERROR en generar_horarios_automaticos: {error_detalle}")
         return {
             'exito': False,
             'mensaje': f'❌ Error crítico: {str(e)}',

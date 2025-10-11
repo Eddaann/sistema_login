@@ -4,6 +4,11 @@ from wtforms import StringField, PasswordField, SelectField, SelectMultipleField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, NumberRange, Optional
 from models import User, Horario, Carrera, Materia
 
+def validate_not_zero(form, field):
+    """Validador personalizado para asegurar que el valor no sea 0"""
+    if field.data == 0:
+        raise ValidationError('Debe seleccionar una opción válida')
+
 class LoginForm(FlaskForm):
     """Formulario de inicio de sesión"""
     username = StringField('Usuario', validators=[DataRequired(), Length(min=4, max=20)])
@@ -434,37 +439,12 @@ class ExportarMateriasForm(FlaskForm):
 class GenerarHorariosForm(FlaskForm):
     """Formulario para generar horarios académicos automáticamente"""
     
-    carrera = SelectField('Carrera', choices=[], validators=[DataRequired()])
-    
-    # Ciclo escolar
-    ciclo = SelectField('Ciclo Escolar', choices=[
-        ('', 'Seleccione un ciclo'),
-        ('1', 'Ciclo 1 (Cuatrimestres 1, 4, 7, 10)'),
-        ('2', 'Ciclo 2 (Cuatrimestres 2, 5, 8)'),
-        ('3', 'Ciclo 3 (Cuatrimestres 0, 3, 6, 9)')
-    ], validators=[DataRequired()])
-    
-    # Cuatrimestre - se filtrará dinámicamente según el ciclo
-    cuatrimestre = SelectField('Cuatrimestre', choices=[
-        ('', 'Seleccione cuatrimestre'),
-        ('0', 'Cuatrimestre 0'),
-        ('1', 'Cuatrimestre 1'),
-        ('2', 'Cuatrimestre 2'),
-        ('3', 'Cuatrimestre 3'),
-        ('4', 'Cuatrimestre 4'),
-        ('5', 'Cuatrimestre 5'),
-        ('6', 'Cuatrimestre 6'),
-        ('7', 'Cuatrimestre 7'),
-        ('8', 'Cuatrimestre 8'),
-        ('9', 'Cuatrimestre 9'),
-        ('10', 'Cuatrimestre 10')
-    ], validators=[DataRequired()])
-    
-    turno = SelectField('Turno', choices=[
-        ('matutino', 'Matutino'),
-        ('vespertino', 'Vespertino'),
-        ('ambos', 'Ambos turnos')
-    ], validators=[DataRequired()])
+    # Ahora solo se necesita seleccionar el grupo
+    # El grupo ya contiene: carrera, cuatrimestre, turno, materias y profesores asignados
+    grupo_id = SelectField('Grupo', coerce=int, choices=[], validators=[
+        DataRequired(message='Debe seleccionar un grupo'),
+        validate_not_zero
+    ])
     
     dias_semana = SelectField('Días de la semana', choices=[
         ('lunes_viernes', 'Lunes a Viernes'),

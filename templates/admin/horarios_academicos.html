@@ -30,10 +30,25 @@
     </div>
 
     <!-- Estadísticas -->
-    {% if horarios_academicos %}
+    {% if grupos_con_horarios %}
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h5 class="card-title">Total Grupos</h5>
+                            <h3 class="mb-0">{{ total_grupos }}</h3>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users-class fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -47,7 +62,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
@@ -62,8 +77,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card bg-info text-white">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -92,7 +107,7 @@
                 </div>
                 <div class="card-body">
                     <form method="GET" class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-8">
                             <label for="carrera" class="form-label">Carrera</label>
                             <select class="form-select" id="carrera" name="carrera">
                                 <option value="">Todas las carreras</option>
@@ -102,11 +117,6 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="periodo" class="form-label">Período Académico</label>
-                            <input type="text" class="form-control" id="periodo" name="periodo"
-                                   value="{{ filtro_periodo }}" placeholder="Ej: 2025-1">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">&nbsp;</label>
@@ -127,87 +137,112 @@
         </div>
     </div>
 
-    <!-- Lista de Horarios Académicos -->
+    <!-- Lista de Grupos con Horarios -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title mb-0">
-                        <i class="fas fa-list me-2"></i>
-                        Horarios Académicos
+                        <i class="fas fa-users-class me-2"></i>
+                        Grupos con Horarios Generados
                     </h3>
                 </div>
                 <div class="card-body">
-                    {% if horarios_academicos %}
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Día</th>
-                                        <th>Hora</th>
-                                        <th>Materia</th>
-                                        <th>Profesor</th>
-                                        <th>Carrera</th>
-                                        <th>Aula</th>
-                                        <th>Período</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for horario in horarios_academicos %}
-                                    <tr>
-                                        <td>
-                                            <span class="badge bg-primary">{{ horario.get_dia_display() }}</span>
-                                        </td>
-                                        <td>
-                                            <strong>{{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}</strong>
-                                            <br>
-                                            <small class="text-muted">{{ horario.horario.nombre }}</small>
-                                        </td>
-                                        <td>
-                                            <strong>{{ horario.get_materia_nombre() }}</strong>
-                                            <br>
-                                            <small class="text-muted">{{ horario.get_materia_codigo() }}</small>
-                                        </td>
-                                        <td>{{ horario.get_profesor_nombre() }}</td>
-                                        <td>{{ horario.materia.get_carrera_nombre() }}</td>
-                                        <td>
-                                            {% if horario.aula %}
-                                                {{ horario.aula }}
-                                            {% else %}
-                                                <span class="text-muted">Sin asignar</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">{{ horario.get_periodo_academico_display() }}</span>
-                                            <br>
-                                            <small class="text-muted">{{ horario.get_ciclo_escolar()['nombre'] }}</small>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a href="{{ url_for('editar_horario_academico', id=horario.id) }}"
-                                                   class="btn btn-sm btn-outline-warning"
-                                                   title="Editar">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="{{ url_for('eliminar_horario_academico', id=horario.id) }}"
-                                                   class="btn btn-sm btn-outline-danger"
-                                                   title="Eliminar"
-                                                   onclick="return confirm('¿Está seguro de que desea eliminar este horario?')">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
+                    {% if grupos_con_horarios %}
+                        <div class="accordion" id="accordionGrupos">
+                            {% for item in grupos_con_horarios %}
+                            {% set grupo = item.grupo %}
+                            {% set horarios = item.horarios %}
+                            <div class="accordion-item mb-3">
+                                <h2 class="accordion-header" id="heading{{ grupo.id }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse{{ grupo.id }}" aria-expanded="false" 
+                                            aria-controls="collapse{{ grupo.id }}">
+                                        <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                            <div>
+                                                <strong class="text-primary fs-5">{{ grupo.codigo }}</strong>
+                                                <span class="text-muted ms-3">
+                                                    {{ grupo.get_carrera_nombre() }} - 
+                                                    Cuatrimestre {{ grupo.cuatrimestre }} - 
+                                                    Turno {{ grupo.get_turno_display() }}
+                                                </span>
                                             </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                                            <div>
+                                                <span class="badge bg-info me-2">{{ horarios|length }} horarios</span>
+                                                <span class="badge bg-success">{{ grupo.materias|length }} materias</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ grupo.id }}" class="accordion-collapse collapse" 
+                                     aria-labelledby="heading{{ grupo.id }}" data-bs-parent="#accordionGrupos">
+                                    <div class="accordion-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped table-hover">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>Día</th>
+                                                        <th>Hora</th>
+                                                        <th>Materia</th>
+                                                        <th>Profesor</th>
+                                                        <th>Aula</th>
+                                                        <th>Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for horario in horarios %}
+                                                    <tr>
+                                                        <td>
+                                                            <span class="badge bg-primary">{{ horario.get_dia_display() }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <strong>{{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ horario.horario.nombre }}</small>
+                                                        </td>
+                                                        <td>
+                                                            <strong>{{ horario.get_materia_nombre() }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ horario.get_materia_codigo() }}</small>
+                                                        </td>
+                                                        <td>{{ horario.get_profesor_nombre() }}</td>
+                                                        <td>
+                                                            {% if horario.aula %}
+                                                                {{ horario.aula }}
+                                                            {% else %}
+                                                                <span class="text-muted">Sin asignar</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <a href="{{ url_for('editar_horario_academico', id=horario.id) }}"
+                                                                   class="btn btn-outline-warning"
+                                                                   title="Editar">
+                                                                    <i class="fas fa-edit"></i>
+                                                                </a>
+                                                                <a href="{{ url_for('eliminar_horario_academico', id=horario.id) }}"
+                                                                   class="btn btn-outline-danger"
+                                                                   title="Eliminar"
+                                                                   onclick="return confirm('¿Está seguro de que desea eliminar este horario?')">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </a>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <div class="text-center py-5">
                             <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
                             <h4 class="text-muted">No hay horarios académicos generados</h4>
-                            <p class="text-muted">Comienza generando horarios para las materias de tu institución.</p>
+                            <p class="text-muted">Comienza generando horarios para los grupos de tu institución.</p>
                             <a href="{{ url_for('generar_horarios_academicos') }}" class="btn btn-primary">
                                 <i class="fas fa-plus me-1"></i>
                                 Generar Horarios

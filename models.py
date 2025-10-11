@@ -702,6 +702,19 @@ class HorarioAcademico(db.Model):
         }
         return dias.get(self.dia_semana, self.dia_semana.title())
     
+    def get_dia_orden(self):
+        """Obtener orden numérico del día (0=Lunes, 1=Martes, etc.)"""
+        orden_dias = {
+            'lunes': 0,
+            'martes': 1,
+            'miercoles': 2,
+            'jueves': 3,
+            'viernes': 4,
+            'sabado': 5,
+            'domingo': 6
+        }
+        return orden_dias.get(self.dia_semana, 99)
+    
     def get_hora_inicio_str(self):
         """Obtener hora de inicio del horario"""
         return self.horario.get_hora_inicio_str() if self.horario else 'N/A'
