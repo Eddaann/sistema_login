@@ -1321,6 +1321,7 @@ def exportar_materias():
     try:
         # Obtener filtros de la URL
         carrera_id = request.args.get('carrera_id', type=int)
+        ciclo = request.args.get('ciclo', type=int)
         cuatrimestre = request.args.get('cuatrimestre', type=int)
         
         # Query para materias con filtros
@@ -1328,6 +1329,19 @@ def exportar_materias():
         
         if carrera_id:
             query = query.filter(Materia.carrera_id == carrera_id)
+        
+        if ciclo:
+            # Filtrar por ciclo escolar
+            cuatrimestres_ciclo = []
+            if ciclo == 1:
+                cuatrimestres_ciclo = [1, 4, 7, 10]
+            elif ciclo == 2:
+                cuatrimestres_ciclo = [2, 5, 8]
+            elif ciclo == 3:
+                cuatrimestres_ciclo = [0, 3, 6, 9]
+            
+            if cuatrimestres_ciclo:
+                query = query.filter(Materia.cuatrimestre.in_(cuatrimestres_ciclo))
         
         if cuatrimestre:
             query = query.filter(Materia.cuatrimestre == cuatrimestre)
@@ -1340,9 +1354,14 @@ def exportar_materias():
             carrera = Carrera.query.get(carrera_id)
             nombre_carrera = carrera.nombre if carrera else None
         
-        archivo_pdf = generar_pdf_materias(materias, nombre_carrera, cuatrimestre)
+        pdf_content = generar_pdf_materias(materias, nombre_carrera, cuatrimestre, ciclo)
         
-        return send_file(archivo_pdf, as_attachment=True, download_name=f'materias_{archivo_pdf.split("/")[-1]}')
+        # Crear respuesta con el PDF
+        response = make_response(pdf_content)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=materias_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        
+        return response
         
     except Exception as e:
         flash('Error al generar el PDF. Inténtalo de nuevo.', 'error')
