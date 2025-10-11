@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-book-open me-2"></i>{{ titulo }}</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('gestionar_profesores_jefe') }}">Profesores</a></li>
+                            <li class="breadcrumb-item active">Asignar Materias</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+            </div>
+
+            <!-- Información del Profesor -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1">{{ profesor.get_nombre_completo() }}</h5>
+                            <p class="text-muted mb-1">
+                                <i class="fas fa-envelope me-2"></i>{{ profesor.email }}
+                            </p>
+                            <p class="text-muted mb-0">
+                                <span class="badge bg-info">{{ profesor.get_rol_display() }}</span>
+                                {% for carrera in profesor.carreras %}
+                                <span class="badge bg-secondary">{{ carrera.codigo }}</span>
+                                {% endfor %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-inline-block text-center">
+                                <h3 class="mb-0 text-primary">{{ profesor.materias|length }}</h3>
+                                <small class="text-muted">Materias Actuales</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Asignación -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Seleccionar Materias</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Instrucciones:</strong> Selecciona las materias que este profesor impartirá. 
+                            Puedes seleccionar múltiples materias manteniendo presionada la tecla <kbd>Ctrl</kbd> (Windows/Linux) 
+                            o <kbd>Cmd</kbd> (Mac) mientras haces clic.
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.materias.label(class="form-label fw-bold") }}
+                            {{ form.materias(class="form-select", size=15, style="height: 400px;") }}
+                            {% if form.materias.errors %}
+                                <div class="text-danger mt-2">
+                                    {% for error in form.materias.errors %}
+                                        <small>{{ error }}</small><br>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Solo se muestran materias de tu carrera.
+                            </small>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gestionar_profesores_jefe') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Materias Actuales -->
+            {% if profesor.materias %}
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Materias Actualmente Asignadas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Cuatrimestre</th>
+                                    <th>Créditos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for materia in profesor.materias|sort(attribute='cuatrimestre') %}
+                                <tr>
+                                    <td><code>{{ materia.codigo }}</code></td>
+                                    <td>{{ materia.nombre }}</td>
+                                    <td><span class="badge bg-info">Cuatri {{ materia.cuatrimestre }}</span></td>
+                                    <td>{{ materia.creditos }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-select[multiple] option {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .form-select[multiple] option:hover {
+        background-color: #e3f2fd;
+    }
+    
+    .form-select[multiple] option:checked {
+        background-color: #1976d2;
+        color: white;
+    }
+    
+    kbd {
+        background-color: #333;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.85em;
+    }
+</style>
+{% endblock %}

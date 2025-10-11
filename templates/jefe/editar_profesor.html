@@ -24,6 +24,36 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    {{ form.username.label(class="form-label") }}
+                                    {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                                    {% if form.username.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.username.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.email.label(class="form-label") }}
+                                    {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                    {% if form.email.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.email.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     {{ form.nombre.label(class="form-label") }}
                                     {{ form.nombre(class="form-control" + (" is-invalid" if form.nombre.errors else "")) }}
                                     {% if form.nombre.errors %}
@@ -54,20 +84,6 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    {{ form.email.label(class="form-label") }}
-                                    {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
-                                    {% if form.email.errors %}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.email.errors %}
-                                                <span>{{ error }}</span>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="form-group">
                                     {{ form.telefono.label(class="form-label") }}
                                     {{ form.telefono(class="form-control") }}
                                 </div>
@@ -90,14 +106,17 @@
                             </div>
                             
                             <div class="col-md-6">
-                                <div class="form-group" id="tipoProfesorGroup" style="display: none;">
-                                    {{ form.tipo_profesor.label(class="form-label") }}
-                                    {{ form.tipo_profesor(class="form-control") }}
+                                <div class="form-group">
+                                    {{ form.activo.label(class="form-label") }}
+                                    <div class="form-check">
+                                        {{ form.activo(class="form-check-input") }}
+                                        <label class="form-check-label" for="activo">Usuario activo</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="form-group mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Guardar Cambios
                             </button>

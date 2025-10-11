@@ -37,24 +37,44 @@
                                         <td>{{ profesor.get_nombre_completo() }}</td>
                                         <td>
                                             {% if profesor.is_profesor_completo() %}
-                                                <span class="badge badge-success">Tiempo Completo</span>
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                                    Tiempo Completo
+                                                </span>
                                             {% elif profesor.is_profesor_asignatura() %}
-                                                <span class="badge badge-info">Por Asignatura</span>
+                                                <span class="badge bg-info">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                                    Por Asignatura
+                                                </span>
                                             {% endif %}
                                         </td>
                                         <td>{{ profesor.email }}</td>
                                         <td>{{ profesor.telefono or 'No especificado' }}</td>
                                         <td>
                                             {% if profesor.activo %}
-                                                <span class="badge badge-success">Activo</span>
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                                    Activo
+                                                </span>
                                             {% else %}
-                                                <span class="badge badge-danger">Inactivo</span>
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.6em;"></i>
+                                                    Inactivo
+                                                </span>
                                             {% endif %}
                                         </td>
                                         <td>
                                             <div class="btn-group">
+                                                <a href="{{ url_for('gestionar_materias_profesor_jefe', id=profesor.id) }}" 
+                                                   class="btn btn-sm btn-primary" title="Asignar Materias">
+                                                    <i class="fas fa-book"></i>
+                                                </a>
+                                                <a href="{{ url_for('ver_materias_profesor_jefe', id=profesor.id) }}" 
+                                                   class="btn btn-sm btn-info" title="Ver Materias">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
                                                 <a href="{{ url_for('editar_profesor_jefe', id=profesor.id) }}" 
-                                                   class="btn btn-sm btn-primary" title="Editar">
+                                                   class="btn btn-sm btn-warning" title="Editar">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 {% if profesor.activo %}

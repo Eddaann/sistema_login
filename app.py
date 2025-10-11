@@ -1,13 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from models import db, User, Horario, Carrera, Materia, HorarioAcademico, DisponibilidadProfesor, init_db, init_upload_dirs
+from models import db, User, Horario, Carrera, Materia, HorarioAcademico, DisponibilidadProfesor, Grupo, init_db, init_upload_dirs
 from forms import (LoginForm, RegistrationForm, HorarioForm, EliminarHorarioForm, 
                    CarreraForm, ImportarProfesoresForm, FiltrarProfesoresForm, ExportarProfesoresForm,
                    MateriaForm, ImportarMateriasForm, FiltrarMateriasForm, ExportarMateriasForm,
                    GenerarHorariosForm, EditarHorarioAcademicoForm, EliminarHorarioAcademicoForm,
                    DisponibilidadProfesorForm, EditarDisponibilidadProfesorForm, AgregarProfesorForm,
-                   EditarUsuarioForm)
+                   EditarUsuarioForm, AsignarMateriasProfesorForm, GrupoForm, AsignarMateriasGrupoForm)
 from utils import procesar_archivo_profesores, generar_pdf_profesores, procesar_archivo_materias, generar_pdf_materias, generar_plantilla_csv
 from datetime import time, datetime
 import os
@@ -228,26 +228,36 @@ def editar_profesor_jefe(id):
             flash('No tienes permisos para editar este jefe de carrera.', 'error')
             return redirect(url_for('gestionar_profesores_jefe'))
     
-    form = EditarUsuarioForm()
+    form = EditarUsuarioForm(user=profesor)
     if form.validate_on_submit():
+        profesor.username = form.username.data
         profesor.nombre = form.nombre.data
         profesor.apellido = form.apellido.data
         profesor.email = form.email.data
         profesor.telefono = form.telefono.data
         profesor.rol = form.rol.data
-        profesor.tipo_profesor = form.tipo_profesor.data if form.rol.data in ['profesor_completo', 'profesor_asignatura'] else None
+        profesor.activo = form.activo.data
         
         db.session.commit()
         flash('Profesor actualizado exitosamente.', 'success')
         return redirect(url_for('gestionar_profesores_jefe'))
+    elif request.method == 'POST':
+        # Si hay errores de validación, mostrarlos
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'Error en {field}: {error}', 'error')
     
     # Pre-llenar el formulario
-    form.nombre.data = profesor.nombre
-    form.apellido.data = profesor.apellido
-    form.email.data = profesor.email
-    form.telefono.data = profesor.telefono
-    form.rol.data = profesor.rol
-    form.tipo_profesor.data = profesor.tipo_profesor
+    if request.method == 'GET':
+        form.username.data = profesor.username
+        form.nombre.data = profesor.nombre
+        form.apellido.data = profesor.apellido
+        form.email.data = profesor.email
+        form.telefono.data = profesor.telefono
+        form.rol.data = profesor.rol
+        form.activo.data = profesor.activo
+        if profesor.carreras:
+            form.carrera.data = str(profesor.carreras[0].id)
     
     return render_template('jefe/editar_profesor.html', form=form, profesor=profesor)
 
@@ -279,6 +289,103 @@ def eliminar_profesor_jefe(id):
     
     flash('Profesor eliminado exitosamente.', 'success')
     return redirect(url_for('gestionar_profesores_jefe'))
+
+@app.route('/jefe-carrera/profesor/<int:id>/materias', methods=['GET', 'POST'])
+@login_required
+def gestionar_materias_profesor_jefe(id):
+    """Asignar/modificar materias de un profesor (jefe de carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    # Verificar que el profesor pertenezca a la carrera del jefe
+    if profesor.is_profesor():
+        if not any(carrera.id == current_user.carrera_id for carrera in profesor.carreras):
+            flash('No tienes permisos para gestionar este profesor.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
+    else:
+        flash('Este usuario no es un profesor.', 'error')
+        return redirect(url_for('gestionar_profesores_jefe'))
+    
+    from forms import AsignarMateriasProfesorForm
+    form = AsignarMateriasProfesorForm(profesor=profesor)
+    
+    # Filtrar solo materias de la carrera del jefe
+    materias_carrera = Materia.query.filter_by(
+        carrera_id=current_user.carrera_id,
+        activa=True
+    ).order_by(Materia.cuatrimestre, Materia.nombre).all()
+    
+    form.materias.choices = [
+        (m.id, f"Cuatri {m.cuatrimestre} - {m.codigo}: {m.nombre}")
+        for m in materias_carrera
+    ]
+    
+    if form.validate_on_submit():
+        try:
+            # Obtener materias seleccionadas
+            materias_ids = form.materias.data
+            materias_nuevas = Materia.query.filter(Materia.id.in_(materias_ids)).all()
+            
+            # Actualizar materias del profesor
+            profesor.materias = materias_nuevas
+            db.session.commit()
+            
+            flash(f'Materias actualizadas exitosamente para {profesor.get_nombre_completo()}. '
+                  f'Total: {len(materias_nuevas)} materias asignadas.', 'success')
+            return redirect(url_for('gestionar_profesores_jefe'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al asignar materias: {str(e)}', 'error')
+    
+    # Precargar materias actuales del profesor
+    elif request.method == 'GET':
+        form.materias.data = [m.id for m in profesor.materias]
+    
+    return render_template('jefe/asignar_materias_profesor.html', 
+                         form=form, 
+                         profesor=profesor,
+                         titulo=f"Asignar Materias - {profesor.get_nombre_completo()}")
+
+@app.route('/jefe-carrera/profesor/<int:id>/materias/ver')
+@login_required
+def ver_materias_profesor_jefe(id):
+    """Ver materias asignadas a un profesor (jefe de carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    # Verificar que el profesor pertenezca a la carrera del jefe
+    if profesor.is_profesor():
+        if not any(carrera.id == current_user.carrera_id for carrera in profesor.carreras):
+            flash('No tienes permisos para ver este profesor.', 'error')
+            return redirect(url_for('gestionar_profesores_jefe'))
+    else:
+        flash('Este usuario no es un profesor.', 'error')
+        return redirect(url_for('gestionar_profesores_jefe'))
+    
+    # Obtener materias ordenadas por cuatrimestre
+    materias = sorted(profesor.materias, key=lambda m: (m.cuatrimestre, m.nombre))
+    
+    # Obtener horarios del profesor agrupados por materia
+    horarios_por_materia = {}
+    for materia in materias:
+        horarios = HorarioAcademico.query.filter_by(
+            profesor_id=profesor.id,
+            materia_id=materia.id,
+            activo=True
+        ).all()
+        horarios_por_materia[materia.id] = horarios
+    
+    return render_template('jefe/ver_materias_profesor.html',
+                         profesor=profesor,
+                         materias=materias,
+                         horarios_por_materia=horarios_por_materia)
 
 # ==========================================
 # GESTIÓN DE MATERIAS PARA JEFES DE CARRERA
@@ -421,6 +528,7 @@ def editar_horario_academico_jefe(id):
         horario_academico.horario_id = form.horario_id.data
         horario_academico.aula = form.aula.data
         horario_academico.dia_semana = form.dia_semana.data
+        horario_academico.grupo = form.grupo.data
         
         db.session.commit()
         flash('Horario académico actualizado exitosamente.', 'success')
@@ -430,6 +538,7 @@ def editar_horario_academico_jefe(id):
     form.horario_id.data = horario_academico.horario_id
     form.aula.data = horario_academico.aula
     form.dia_semana.data = horario_academico.dia_semana
+    form.grupo.data = horario_academico.grupo
     
     return render_template('jefe/editar_horario_academico.html', 
                          form=form, 
@@ -478,6 +587,178 @@ def profesor_horarios():
                          total_horas=total_horas,
                          materias_unicas=materias_unicas,
                          dias_semana=dias_semana)
+
+# ==================== RUTAS DE GESTIÓN DE GRUPOS (ADMIN) ====================
+
+@app.route('/admin/grupos')
+@login_required
+def gestionar_grupos():
+    """Gestión de grupos - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    grupos = Grupo.query.join(Carrera).order_by(
+        Carrera.nombre, Grupo.cuatrimestre, Grupo.numero_grupo
+    ).all()
+    
+    return render_template('admin/grupos.html', grupos=grupos)
+
+@app.route('/admin/grupo/nuevo', methods=['GET', 'POST'])
+@login_required
+def crear_grupo():
+    """Crear nuevo grupo - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    form = GrupoForm()
+    if form.validate_on_submit():
+        # Verificar que se haya seleccionado una carrera válida
+        if form.carrera.data == 0:
+            flash('Debe seleccionar una carrera.', 'error')
+            return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo')
+        
+        # Verificar que se haya seleccionado un cuatrimestre válido (0-10 son válidos, -1 no)
+        if form.cuatrimestre.data == -1:
+            flash('Debe seleccionar un cuatrimestre.', 'error')
+            return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo')
+        
+        # Verificar si ya existe un grupo con la misma configuración
+        grupo_existente = Grupo.query.filter_by(
+            numero_grupo=form.numero_grupo.data,
+            turno=form.turno.data,
+            carrera_id=form.carrera.data,
+            cuatrimestre=form.cuatrimestre.data
+        ).first()
+        
+        if grupo_existente:
+            flash('Ya existe un grupo con esta configuración.', 'error')
+        else:
+            grupo = Grupo(
+                numero_grupo=form.numero_grupo.data,
+                turno=form.turno.data,
+                carrera_id=form.carrera.data,
+                cuatrimestre=form.cuatrimestre.data,
+                creado_por=current_user.id
+            )
+            db.session.add(grupo)
+            db.session.commit()
+            flash(f'Grupo {grupo.codigo} creado exitosamente.', 'success')
+            return redirect(url_for('gestionar_grupos'))
+    
+    return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo')
+
+@app.route('/admin/grupo/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_grupo(id):
+    """Editar grupo existente - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    grupo = Grupo.query.get_or_404(id)
+    form = GrupoForm()
+    
+    if form.validate_on_submit():
+        # Verificar que se haya seleccionado una carrera válida
+        if form.carrera.data == 0:
+            flash('Debe seleccionar una carrera.', 'error')
+            return render_template('admin/grupo_form.html', form=form, grupo=grupo, titulo=f'Editar Grupo {grupo.codigo}')
+        
+        # Verificar que se haya seleccionado un cuatrimestre válido (0-10 son válidos, -1 no)
+        if form.cuatrimestre.data == -1:
+            flash('Debe seleccionar un cuatrimestre.', 'error')
+            return render_template('admin/grupo_form.html', form=form, grupo=grupo, titulo=f'Editar Grupo {grupo.codigo}')
+        
+        # Verificar si ya existe otro grupo con la misma configuración
+        grupo_existente = Grupo.query.filter(
+            Grupo.id != id,
+            Grupo.numero_grupo == form.numero_grupo.data,
+            Grupo.turno == form.turno.data,
+            Grupo.carrera_id == form.carrera.data,
+            Grupo.cuatrimestre == form.cuatrimestre.data
+        ).first()
+        
+        if grupo_existente:
+            flash('Ya existe otro grupo con esta configuración.', 'error')
+        else:
+            grupo.numero_grupo = form.numero_grupo.data
+            grupo.turno = form.turno.data
+            grupo.carrera_id = form.carrera.data
+            grupo.cuatrimestre = form.cuatrimestre.data
+            grupo.codigo = grupo.generar_codigo()  # Regenerar código
+            
+            db.session.commit()
+            flash(f'Grupo {grupo.codigo} actualizado exitosamente.', 'success')
+            return redirect(url_for('gestionar_grupos'))
+    
+    # Pre-llenar el formulario
+    if request.method == 'GET':
+        form.numero_grupo.data = grupo.numero_grupo
+        form.turno.data = grupo.turno
+        form.carrera.data = grupo.carrera_id
+        form.cuatrimestre.data = grupo.cuatrimestre
+    
+    return render_template('admin/grupo_form.html', form=form, grupo=grupo, titulo=f'Editar Grupo {grupo.codigo}')
+
+@app.route('/admin/grupo/<int:id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_grupo(id):
+    """Eliminar grupo - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    grupo = Grupo.query.get_or_404(id)
+    
+    # Verificar si tiene horarios asignados (cuando se implemente la relación)
+    # Por ahora solo eliminar
+    codigo = grupo.codigo
+    db.session.delete(grupo)
+    db.session.commit()
+    
+    flash(f'Grupo {codigo} eliminado exitosamente.', 'success')
+    return redirect(url_for('gestionar_grupos'))
+
+@app.route('/admin/grupo/<int:id>/materias', methods=['GET', 'POST'])
+@login_required
+def gestionar_materias_grupo(id):
+    """Asignar materias a un grupo - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    grupo = Grupo.query.get_or_404(id)
+    form = AsignarMateriasGrupoForm(grupo=grupo)
+    
+    if form.validate_on_submit():
+        # Limpiar materias actuales y asignar nuevas
+        grupo.materias = []
+        materias_seleccionadas = Materia.query.filter(Materia.id.in_(form.materias.data)).all()
+        grupo.materias = materias_seleccionadas
+        
+        db.session.commit()
+        flash(f'{len(materias_seleccionadas)} materias asignadas al grupo {grupo.codigo} exitosamente.', 'success')
+        return redirect(url_for('ver_materias_grupo', id=grupo.id))
+    
+    # Pre-seleccionar materias ya asignadas
+    if request.method == 'GET':
+        form.materias.data = [m.id for m in grupo.materias]
+    
+    return render_template('admin/asignar_materias_grupo.html', form=form, grupo=grupo)
+
+@app.route('/admin/grupo/<int:id>/materias/ver')
+@login_required
+def ver_materias_grupo(id):
+    """Ver materias asignadas a un grupo - solo para administradores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    grupo = Grupo.query.get_or_404(id)
+    
+    return render_template('admin/ver_materias_grupo.html', grupo=grupo)
 
 # Rutas de gestión de horarios (solo administradores)
 @app.route('/admin/horarios')
@@ -1040,6 +1321,7 @@ def exportar_materias():
     try:
         # Obtener filtros de la URL
         carrera_id = request.args.get('carrera_id', type=int)
+        ciclo = request.args.get('ciclo', type=int)
         cuatrimestre = request.args.get('cuatrimestre', type=int)
         
         # Query para materias con filtros
@@ -1047,6 +1329,19 @@ def exportar_materias():
         
         if carrera_id:
             query = query.filter(Materia.carrera_id == carrera_id)
+        
+        if ciclo:
+            # Filtrar por ciclo escolar
+            cuatrimestres_ciclo = []
+            if ciclo == 1:
+                cuatrimestres_ciclo = [1, 4, 7, 10]
+            elif ciclo == 2:
+                cuatrimestres_ciclo = [2, 5, 8]
+            elif ciclo == 3:
+                cuatrimestres_ciclo = [0, 3, 6, 9]
+            
+            if cuatrimestres_ciclo:
+                query = query.filter(Materia.cuatrimestre.in_(cuatrimestres_ciclo))
         
         if cuatrimestre:
             query = query.filter(Materia.cuatrimestre == cuatrimestre)
@@ -1059,9 +1354,14 @@ def exportar_materias():
             carrera = Carrera.query.get(carrera_id)
             nombre_carrera = carrera.nombre if carrera else None
         
-        archivo_pdf = generar_pdf_materias(materias, nombre_carrera, cuatrimestre)
+        pdf_content = generar_pdf_materias(materias, nombre_carrera, cuatrimestre, ciclo)
         
-        return send_file(archivo_pdf, as_attachment=True, download_name=f'materias_{archivo_pdf.split("/")[-1]}')
+        # Crear respuesta con el PDF
+        response = make_response(pdf_content)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=materias_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        
+        return response
         
     except Exception as e:
         flash('Error al generar el PDF. Inténtalo de nuevo.', 'error')
@@ -1319,6 +1619,85 @@ def agregar_profesor():
     
     return render_template('admin/profesor_form.html', form=form, titulo="Agregar Profesor", horarios=horarios)
 
+# ==========================================
+# GESTIÓN DE MATERIAS DE PROFESORES
+# ==========================================
+@app.route('/admin/profesores/<int:id>/materias', methods=['GET', 'POST'])
+@login_required
+def gestionar_materias_profesor(id):
+    """Asignar/modificar materias de un profesor (solo admin)"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    if profesor.rol not in ['profesor_completo', 'profesor_asignatura']:
+        flash('Este usuario no es un profesor.', 'error')
+        return redirect(url_for('gestionar_profesores'))
+    
+    from forms import AsignarMateriasProfesorForm
+    form = AsignarMateriasProfesorForm(profesor=profesor)
+    
+    if form.validate_on_submit():
+        try:
+            # Obtener materias seleccionadas
+            materias_ids = form.materias.data
+            materias_nuevas = Materia.query.filter(Materia.id.in_(materias_ids)).all()
+            
+            # Actualizar materias del profesor
+            profesor.materias = materias_nuevas
+            db.session.commit()
+            
+            flash(f'Materias actualizadas exitosamente para {profesor.get_nombre_completo()}. '
+                  f'Total: {len(materias_nuevas)} materias asignadas.', 'success')
+            return redirect(url_for('gestionar_profesores'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al asignar materias: {str(e)}', 'error')
+    
+    # Precargar materias actuales del profesor
+    elif request.method == 'GET':
+        form.materias.data = [m.id for m in profesor.materias]
+    
+    return render_template('admin/asignar_materias_profesor.html', 
+                         form=form, 
+                         profesor=profesor,
+                         titulo=f"Asignar Materias - {profesor.get_nombre_completo()}")
+
+@app.route('/admin/profesores/<int:id>/materias/ver')
+@login_required
+def ver_materias_profesor(id):
+    """Ver materias asignadas a un profesor (solo admin)"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    profesor = User.query.get_or_404(id)
+    
+    if profesor.rol not in ['profesor_completo', 'profesor_asignatura']:
+        flash('Este usuario no es un profesor.', 'error')
+        return redirect(url_for('gestionar_profesores'))
+    
+    # Obtener materias ordenadas por cuatrimestre
+    materias = sorted(profesor.materias, key=lambda m: (m.cuatrimestre, m.nombre))
+    
+    # Obtener horarios del profesor agrupados por materia
+    horarios_por_materia = {}
+    for materia in materias:
+        horarios = HorarioAcademico.query.filter_by(
+            profesor_id=profesor.id,
+            materia_id=materia.id,
+            activo=True
+        ).all()
+        horarios_por_materia[materia.id] = horarios
+    
+    return render_template('admin/ver_materias_profesor.html',
+                         profesor=profesor,
+                         materias=materias,
+                         horarios_por_materia=horarios_por_materia)
+
 # Manejo de errores
 @app.errorhandler(404)
 def not_found_error(error):
@@ -1485,6 +1864,7 @@ def editar_horario_academico(id):
         horario_academico.profesor_id = int(form.profesor_id.data)
         horario_academico.horario_id = int(form.horario_id.data)
         horario_academico.dia_semana = form.dia_semana.data
+        horario_academico.grupo = form.grupo.data
         horario_academico.aula = form.aula.data
         # El periodo_academico se calcula automáticamente en el modelo
 
@@ -1496,6 +1876,7 @@ def editar_horario_academico(id):
     form.profesor_id.data = str(horario_academico.profesor_id)
     form.horario_id.data = str(horario_academico.horario_id)
     form.dia_semana.data = horario_academico.dia_semana
+    form.grupo.data = horario_academico.grupo
     form.aula.data = horario_academico.aula
 
     return render_template('admin/editar_horario_academico.html',

@@ -464,7 +464,7 @@ def procesar_archivo_materias(archivo, carrera_defecto_id=None):
     
     return resultado
 
-def generar_pdf_materias(materias, nombre_carrera=None, cuatrimestre=None):
+def generar_pdf_materias(materias, nombre_carrera=None, cuatrimestre=None, ciclo=None):
     """
     Generar PDF con lista de materias
     """
@@ -499,10 +499,28 @@ def generar_pdf_materias(materias, nombre_carrera=None, cuatrimestre=None):
     # Título
     if nombre_carrera and cuatrimestre:
         titulo = f"Materias - {nombre_carrera} - Cuatrimestre {cuatrimestre}"
+    elif nombre_carrera and ciclo:
+        ciclo_nombre = f"Ciclo {ciclo}"
+        if ciclo == 1:
+            ciclo_nombre += " (Cuatrimestres 1, 4, 7, 10)"
+        elif ciclo == 2:
+            ciclo_nombre += " (Cuatrimestres 2, 5, 8)"
+        elif ciclo == 3:
+            ciclo_nombre += " (Cuatrimestres 0, 3, 6, 9)"
+        titulo = f"Materias - {nombre_carrera} - {ciclo_nombre}"
     elif nombre_carrera:
         titulo = f"Materias - {nombre_carrera}"
     elif cuatrimestre:
         titulo = f"Materias - Cuatrimestre {cuatrimestre}"
+    elif ciclo:
+        ciclo_nombre = f"Ciclo {ciclo}"
+        if ciclo == 1:
+            ciclo_nombre += " (Cuatrimestres 1, 4, 7, 10)"
+        elif ciclo == 2:
+            ciclo_nombre += " (Cuatrimestres 2, 5, 8)"
+        elif ciclo == 3:
+            ciclo_nombre += " (Cuatrimestres 0, 3, 6, 9)"
+        titulo = f"Materias - {ciclo_nombre}"
     else:
         titulo = "Materias - Todas las Carreras"
     
