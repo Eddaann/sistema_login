@@ -83,10 +83,10 @@
                                             <div class="progress mb-1" style="height: 20px;">
                                                 <div class="progress-bar bg-{{ resumen.estado.clase }}" 
                                                      role="progressbar" 
-                                                     style="width: {{ resumen.completitud }}%"
                                                      aria-valuenow="{{ resumen.completitud }}" 
                                                      aria-valuemin="0" 
-                                                     aria-valuemax="100">
+                                                     aria-valuemax="100"
+                                                     data-width="{{ resumen.completitud }}">
                                                     {{ resumen.completitud }}%
                                                 </div>
                                             </div>
@@ -147,4 +147,16 @@
         </div>
     </div>
 </div>
+
+<script>
+// Establecer el ancho de las barras de progreso después de que se cargue la página
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-width]');
+    progressBars.forEach(function(bar) {
+        const width = bar.getAttribute('data-width');
+        bar.style.width = width + '%';
+    });
+});
+</script>
+
 {% endblock %}
