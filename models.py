@@ -569,6 +569,75 @@ class Grupo(db.Model):
         """Obtener nombre del cuatrimestre para mostrar"""
         return f"Cuatrimestre {self.cuatrimestre}"
     
+    def get_profesores_asignados(self):
+        """Obtener profesores que imparten materias en este grupo"""
+        profesores = set()
+        for materia in self.materias:
+            for profesor in materia.profesores:
+                profesores.add(profesor)
+        return list(profesores)
+    
+    def get_profesores_count(self):
+        """Obtener cantidad de profesores únicos asignados al grupo"""
+        return len(self.get_profesores_asignados())
+    
+    def get_materias_con_profesores(self):
+        """Obtener materias con sus profesores asignados"""
+        materias_info = []
+        for materia in self.materias:
+            profesores_materia = [p for p in materia.profesores if p.activo]
+            materias_info.append({
+                'materia': materia,
+                'profesores': profesores_materia,
+                'tiene_profesor': len(profesores_materia) > 0
+            })
+        return materias_info
+    
+    def get_materias_sin_profesor(self):
+        """Obtener materias que no tienen profesor asignado"""
+        materias_sin_profesor = []
+        for materia in self.materias:
+            if not any(p.activo for p in materia.profesores):
+                materias_sin_profesor.append(materia)
+        return materias_sin_profesor
+    
+    def get_completitud_asignaciones(self):
+        """Obtener porcentaje de materias con profesor asignado"""
+        if not self.materias:
+            return 0
+        
+        materias_con_profesor = sum(1 for materia in self.materias 
+                                  if any(p.activo for p in materia.profesores))
+        return round((materias_con_profesor / len(self.materias)) * 100, 1)
+    
+    def get_estado_grupo(self):
+        """Obtener estado del grupo basado en asignaciones"""
+        completitud = self.get_completitud_asignaciones()
+        
+        if completitud == 100:
+            return {'estado': 'completo', 'clase': 'success', 'texto': 'Completo'}
+        elif completitud >= 75:
+            return {'estado': 'casi_completo', 'clase': 'warning', 'texto': 'Casi completo'}
+        elif completitud >= 50:
+            return {'estado': 'en_progreso', 'clase': 'info', 'texto': 'En progreso'}
+        else:
+            return {'estado': 'incompleto', 'clase': 'danger', 'texto': 'Incompleto'}
+    
+    def get_resumen_completo(self):
+        """Obtener resumen completo del grupo para mostrar en la interfaz"""
+        estado = self.get_estado_grupo()
+        return {
+            'grupo': self,
+            'materias_count': self.get_materias_count(),
+            'profesores_count': self.get_profesores_count(),
+            'completitud': self.get_completitud_asignaciones(),
+            'estado': estado,
+            'materias_sin_profesor': len(self.get_materias_sin_profesor()),
+            'carrera_nombre': self.get_carrera_nombre(),
+            'turno_display': self.get_turno_display(),
+            'cuatrimestre_display': self.get_cuatrimestre_display()
+        }
+    
     def __repr__(self):
         return f'<Grupo {self.codigo}>'
 
