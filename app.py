@@ -20,7 +20,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import csv
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter, A4, landscape 
 import re
@@ -3855,6 +3856,140 @@ def exportar_jefe_fda_profesor(profesor_nombre):
     except Exception as e:
         flash(f"Ocurrió un error al generar el reporte: {e}", "danger")
         return redirect(url_for('jefe_ver_horarios_profesores'))
+    
+
+def _generar_excel_horario_profesor(profesor_nombre):
+    """
+    Función auxiliar interna que genera y retorna el archivo Excel del horario.
+    """
+    try:
+        # =====================================================================
+        # 1. OBTENER DATOS (SECCIÓN A MODIFICAR POR TI)
+        # =====================================================================
+        profesor = User.query.filter((User.nombre + ' ' + User.apellido) == profesor_nombre).first()
+        if not profesor:
+            return "Profesor no encontrado", 404
+
+        # --- LÓGICA DE CONSULTA DE HORARIO (DEBES ADAPTARLA) ---
+        horario_profesor = {
+            'Lunes': { '08:00': 'Gestión a la Administración', '09:00': 'Gestión a la Administración' },
+            'Martes': { '08:00': 'Tecnología de Negocios 9MSC1', '09:00': 'Tecnología de Negocios 9MSC1' },
+            'Jueves': { '11:00': 'Tutoria' }
+        }
+
+        # --- LÓGICA CORREGIDA PARA "TIPO DE HORAS" ---
+        tipo_horas_labels = [
+            "Impartición de Curso", "Asesoría", "Tutoría",
+            "Apoyo a la Gestión", "Dual", "Investigación"
+        ]
+        tipo_horas_valores = {}
+        if profesor.tipo_profesor == 'Tiempo Completo':
+            tipo_horas_valores = {
+                "Impartición de Curso": 24, "Asesoría": 0, "Tutoría": 1,
+                "Apoyo a la Gestión": 15, "Dual": 0, "Investigación": 0
+            }
+
+    
+        # =====================================================================
+        # 2. CREACIÓN Y CONFIGURACIÓN DEL EXCEL (CÓDIGO COMPLETO)
+        # =====================================================================
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Carga Horaria"
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        top_border = Border(top=Side(style='thin'))
+        bold_font_16 = Font(bold=True, size=16)
+        bold_font = Font(bold=True)
+        center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        small_font_center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws.column_dimensions['A'].width = 14
+        for col in ['B', 'C', 'D', 'E', 'F', 'J']: ws.column_dimensions[col].width = 20
+        for col in ['G', 'H', 'I']: ws.column_dimensions[col].width = 3
+        ws.merge_cells('B2:K2'); cell = ws['B2']; cell.value = 'Carga Horaria'; cell.font = bold_font_16; cell.alignment = center_align
+        ws.merge_cells('B3:D3'); ws['B3'].value = 'Área: Dirección Academica'
+        ws.merge_cells('E3:G3'); ws['E3'].value = 'Vigencia: 16/05/2017'
+        ws.merge_cells('H3:J3'); ws['H3'].value = 'Código: FDA-02.5'
+        ws['B5'].value = 'Nombre:'; ws.merge_cells('C5:F5'); ws['C5'].value = profesor_nombre
+        ws['G5'].value = 'Prof. Asignatura'; ws.merge_cells('I5:J5'); ws['I5'].value = 'Prof. Tiempo Completo'
+        if profesor.tipo_profesor == 'Tiempo Completo':
+            ws['K5'].value = 'x'; ws['K5'].border = thin_border; ws['K5'].alignment = center_align
+        else:
+            ws['H5'].value = 'x'; ws['H5'].border = thin_border; ws['H5'].alignment = center_align
+        ws['B7'].value = 'Periodo:'; ws['C7'].value = 'Septiembre - Diciembre'
+        ws['E7'].value = 'Fecha de Inicio:'; ws['F7'].value = datetime.now().strftime("%Y-%m-%d")
+        ws['H7'].value = 'Plan de Estudios:'; ws['I7'].value = '2018'
+        ws.merge_cells('B9:K9'); ws['B9'].value = 'Instrucciones: Introducir nombre de la Asignatura, Salón y Grupo dentro de la celda correspondiente al día y la hora que será impartida.'; ws['B9'].alignment = Alignment(wrap_text=True)
+        dias_semana_map = {'Lunes': 'B', 'Martes': 'C', 'Miercoles': 'D', 'Jueves': 'E', 'Viernes': 'F', 'Sábado': 'J'}
+        header_horario = {'A': 'Horario', **{col: dia for dia, col in dias_semana_map.items()}}
+        for col, text in header_horario.items():
+            cell = ws[f'{col}12']; cell.value = text; cell.font = bold_font; cell.alignment = center_align; cell.border = thin_border; cell.fill = PatternFill("solid", fgColor="D9D9D9")
+        current_row = 13
+        for hour in range(7, 22):
+            hora_str_key = f"{hour:02d}:00"
+            ws[f'A{current_row}'].value = f"{hora_str_key}:00"
+            for dia, col in dias_semana_map.items():
+                cell = ws[f'{col}{current_row}']; cell.value = horario_profesor.get(dia, {}).get(hora_str_key, ''); cell.alignment = small_font_center_align; cell.font = Font(size=9)
+            for col in ['A'] + list(dias_semana_map.values()): ws[f'{col}{current_row}'].border = thin_border
+            current_row += 1; ws.row_dimensions[current_row].height = 4; current_row += 1
+        total_row_idx = current_row - 1
+        ws[f'A{total_row_idx}'].value = 'Total'; ws[f'A{total_row_idx}'].font = bold_font
+        for dia, col in dias_semana_map.items():
+            count = len(horario_profesor.get(dia, {}))
+            ws[f'{col}{total_row_idx}'].value = count if count > 0 else 0; ws[f'{col}{total_row_idx}'].font = bold_font; ws[f'{col}{total_row_idx}'].alignment = center_align
+        row_offset = total_row_idx + 2
+        ws.merge_cells(f'B{row_offset}:C{row_offset}'); ws[f'B{row_offset}'].value = 'Tipo de Horas'; ws[f'B{row_offset}'].font = bold_font
+        ws[f'D{row_offset}'].value = 'Horas'; ws[f'D{row_offset}'].font = bold_font
+        total_general = 0
+        for i, label in enumerate(tipo_horas_labels, 1):
+            valor = tipo_horas_valores.get(label, '')
+            ws[f'B{row_offset + i}'].value = label
+            ws[f'D{row_offset + i}'].value = valor
+            total_general += valor if isinstance(valor, int) else 0
+        total_tipo_horas_row = row_offset + len(tipo_horas_labels) + 1
+        ws[f'B{total_tipo_horas_row}'].value = 'Total de Horas'; ws[f'B{total_tipo_horas_row}'].font = bold_font
+        ws[f'D{total_tipo_horas_row}'].value = total_general if profesor.tipo_profesor == 'Tiempo Completo' else ''; ws[f'D{total_tipo_horas_row}'].font = bold_font
+        ws.merge_cells(f'B{total_tipo_horas_row + 1}:F{total_tipo_horas_row + 1}'); ws[f'B{total_tipo_horas_row + 1}'].value = '*Solo llenar en caso de ser Profesor de Tiempo Completo'
+        firma_row = total_tipo_horas_row + 4
+        ws[f'B{firma_row}'].value = 'Elaboró:'; ws[f'E{firma_row}'].value = 'Autorizó:'; ws[f'H{firma_row}'].value = 'Recibió:'
+        firma_row += 4
+        ws.merge_cells(f'B{firma_row}:D{firma_row}'); ws[f'B{firma_row}'].value = profesor_nombre; ws[f'B{firma_row}'].alignment = center_align
+        ws.merge_cells(f'E{firma_row}:G{firma_row}'); ws[f'E{firma_row}'].value = 'M. en E. Héctor Manuel Gómez Martínez'; ws[f'E{firma_row}'].alignment = center_align
+        ws.merge_cells(f'H{firma_row}:J{firma_row}'); ws[f'H{firma_row}'].value = profesor_nombre; ws[f'H{firma_row}'].alignment = center_align
+        firma_row += 1
+        ws.merge_cells(f'B{firma_row}:D{firma_row}'); ws[f'B{firma_row}'].value = 'Responsable del PE de Ingeniería en: ISC'; ws[f'B{firma_row}'].alignment = center_align
+        ws.merge_cells(f'E{firma_row}:G{firma_row}'); ws[f'E{firma_row}'].value = 'Director Académico'; ws[f'E{firma_row}'].alignment = center_align
+        ws.merge_cells(f'H{firma_row}:J{firma_row}'); ws[f'H{firma_row}'].value = 'Profesor de Tiempo Completo'; ws[f'H{firma_row}'].alignment = center_align
+        firma_row += 2
+        for cols in [('B','D'), ('E','G'), ('H','J')]:
+            ws.merge_cells(f'{cols[0]}{firma_row}:{cols[1]}{firma_row}'); cell = ws[f'{cols[0]}{firma_row}']; cell.value = 'Firma'; cell.alignment = center_align; cell.border = top_border
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = f"Horario_{profesor.nombre.replace(' ','_')}_{profesor.apellido.replace(' ','_')}.xlsx"
+        return send_file(output, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Ocurrió un error al generar el archivo Excel: {e}", 500
+
+
+# 2. RUTA ORIGINAL (PARA ADMIN), AHORA SIMPLEMENTE LLAMA A LA FUNCIÓN AUXILIAR
+@app.route('/exportar/horario-excel/<profesor_nombre>')
+# @login_required
+def exportar_excel_profesor(profesor_nombre):
+    return _generar_excel_horario_profesor(profesor_nombre)
+
+
+# 3. NUEVA RUTA (PARA JEFE DE CARRERA), LLAMA A LA MISMA FUNCIÓN AUXILIAR
+@app.route('/exportar/horario-jefe-excel/<profesor_nombre>')
+# @login_required
+def exportar_jefe_excel_profesor(profesor_nombre):
+    # Aquí podrías agregar lógica de permisos si es necesario,
+    # por ejemplo, verificar que el jefe de carrera solo pueda
+    # exportar horarios de profesores de su carrera.
+    return _generar_excel_horario_profesor(profesor_nombre)
+    
 
 with app.app_context():
     init_db()

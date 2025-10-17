@@ -45,12 +45,18 @@
                                 {% endfor %}
                             </td>
                             {% endfor %}
-                            <td>
+                            <td class="d-flex flex-column gap-2">
                                 <a href="{{ url_for('exportar_jefe_fda_profesor', profesor_nombre=profesor) }}" 
                                    class="btn btn-sm btn-danger" 
                                    data-bs-toggle="tooltip" 
                                    title="Exportar Carga Horaria (Formato Oficial FDA)">
                                     <i class="fas fa-file-invoice me-1"></i> FDA
+                                </a>
+                                <a href="{{ url_for('exportar_jefe_excel_profesor', profesor_nombre=profesor) }}"
+                                   class="btn btn-sm btn-success"
+                                   data-bs-toggle="tooltip"
+                                   title="Exportar Carga Horaria (Formato Excel)">
+                                    <i class="fas fa-file-excel me-1"></i> Excel
                                 </a>
                             </td>
                         </tr>
