@@ -20,7 +20,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import csv
 import openpyxl
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter, A4, landscape 
 import re
 
@@ -123,6 +125,201 @@ def register():
             print(f"Error en registro: {e}")
     
     return render_template('register.html', form=form)
+
+# ==========================================
+# FUNCIÓN CENTRAL PARA PROCESAR HORARIOS
+# ==========================================
+def procesar_horarios(agrupar_por='profesor', carrera_id=None):
+    """
+    Función centralizada para obtener y procesar los horarios académicos.
+    
+    :param agrupar_por: 'profesor' o 'grupo'. Define cómo se agruparán los datos.
+    :param carrera_id: Opcional. Si se provee un ID, filtra los horarios para esa carrera.
+    :return: Un diccionario con los horarios organizados.
+    """
+    
+    # 1. Consulta base a la base de datos
+    query = HorarioAcademico.query.filter_by(activo=True)
+    
+    # 2. Si se especifica una carrera_id, filtramos los resultados
+    if carrera_id:
+        query = query.join(Materia).filter(Materia.carrera_id == carrera_id)
+        
+    asignaciones = query.all()
+    
+    # 3. Ordenamos los resultados en Python
+    asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    
+    # 4. Diccionario para almacenar el resultado final
+    datos_organizados = {}
+    
+    # Mapeo de días para asegurar formato correcto
+    dias_map = {
+        'lunes': 'Lunes', 'martes': 'Martes', 'miercoles': 'Miércoles',
+        'jueves': 'Jueves', 'viernes': 'Viernes'
+    }
+
+    # 5. Iteramos sobre cada asignación para construir el diccionario
+    for a in asignaciones:
+        if not all([a.profesor, a.materia, a.horario]):
+            continue
+
+        clave_agrupacion = None
+        info_clase_html = ""
+        
+        # Lógica para agrupar por PROFESOR
+        if agrupar_por == 'profesor':
+            clave_agrupacion = a.profesor.get_nombre_completo()
+            info_clase_html = (
+                f"{a.materia.nombre}<br>"
+                f"<small class='text-muted'>{a.materia.codigo}</small><br>"
+                f"{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+            )
+
+        # Lógica para agrupar por GRUPO
+        elif agrupar_por == 'grupo':
+            grupos_materia = [g for g in a.materia.grupos if carrera_id is None or g.carrera_id == carrera_id]
+            if grupos_materia:
+                grupo = grupos_materia[0] # Tomamos el primer grupo asociado
+                clave_agrupacion = grupo.codigo
+                info_clase_html = (
+                    f"{a.materia.nombre}<br>"
+                    f"Prof: {a.profesor.get_nombre_completo()}<br>"
+                    f"{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
+                )
+
+        # Si encontramos una clave válida, la agregamos al diccionario
+        if clave_agrupacion:
+            if clave_agrupacion not in datos_organizados:
+                datos_organizados[clave_agrupacion] = {d: [] for d in dias_map.values()}
+            
+            dia_correcto = dias_map.get(a.dia_semana.lower())
+            if dia_correcto:
+                datos_organizados[clave_agrupacion][dia_correcto].append(info_clase_html)
+
+    return datos_organizados
+
+
+# =================================================================
+# FUNCIÓN "CEREBRO" PARA OBTENER DATOS DETALLADOS (FORMATO FDA)
+# =================================================================
+
+def procesar_horarios_formato_fda(carrera_id=None):
+    """
+    Obtiene los datos de horarios con todos los detalles necesarios 
+    para generar el formato de Carga Horaria (FDA).
+    """
+    query = HorarioAcademico.query.filter_by(activo=True)
+    
+    if carrera_id:
+        query = query.join(Materia).filter(Materia.carrera_id == carrera_id)
+        
+    asignaciones = query.all()
+    
+    horarios_por_profesor = {}
+    
+    dias_map = {'lunes': 'Lunes', 'martes': 'Martes', 'miercoles': 'Miércoles', 'jueves': 'Jueves', 'viernes': 'Viernes', 'sabado': 'Sábado'}
+
+    for a in asignaciones:
+        if not all([a.profesor, a.materia, a.horario, a.materia.carrera]):
+            continue
+
+        profesor_nombre = a.profesor.get_nombre_completo()
+        
+        if profesor_nombre not in horarios_por_profesor:
+            # ¡CAMBIO IMPORTANTE! Guardamos la info en un diccionario, no en el objeto.
+            info_profesor = {
+                'nombre_completo': a.profesor.get_nombre_completo(),
+                # Lógica de ejemplo para TC/PA. Debes adaptar 'tipo_contrato' al nombre
+                # del campo en tu modelo 'Profesor' o 'Usuario'.
+                'es_tc': getattr(a.profesor, 'tipo_contrato', 'PA').upper() == 'TC'
+            }
+            horarios_por_profesor[profesor_nombre] = {
+                'info': info_profesor,
+                'clases': []
+            }
+        
+        duracion_horas = (a.horario.hora_fin.hour - a.horario.hora_inicio.hour) + (a.horario.hora_fin.minute - a.horario.hora_inicio.minute) / 60.0
+        grupo_codigo = "N/A"
+        grupos_materia = [g for g in a.materia.grupos if carrera_id is None or g.carrera_id == carrera_id]
+        if grupos_materia:
+            grupo_codigo = grupos_materia[0].codigo
+
+        dia_correcto = dias_map.get(a.dia_semana.lower())
+        if not dia_correcto: continue
+
+        detalle_clase = {
+            'clave': a.materia.codigo, 'asignatura': a.materia.nombre, 'grupo': grupo_codigo,
+            'dia_raw': a.dia_semana.lower(), 'hora_inicio': a.get_hora_inicio_str(),
+            'hora_fin': a.get_hora_fin_str(), 'horas_totales': duracion_horas,
+            'carrera': a.materia.carrera.codigo
+        }
+        horarios_por_profesor[profesor_nombre]['clases'].append(detalle_clase)
+
+    for data in horarios_por_profesor.values():
+        data['clases'].sort(key=lambda c: (['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'].index(c['dia_raw']), c['hora_inicio']))
+
+    return horarios_por_profesor
+
+# =================================================================
+# FUNCIÓN PARA GENERAR EL REPORTE FDA EN EXCEL (VERSIÓN CORREGIDA)
+# =================================================================
+def generar_excel_formato_fda(datos_profesor):
+    """
+    Crea un archivo Excel con el formato de Carga Horaria (FDA) para un profesor.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Carga Horaria"
+
+    bold_font = Font(bold=True, name='Arial', size=10)
+    center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+
+
+    ws.merge_cells('D1:J4'); ws['D1'] = 'Formato de Carga Horaria'; ws['D1'].font = Font(bold=True, size=16, name='Arial'); ws['D1'].alignment = center_align
+    ws.merge_cells('K1:L2'); ws['K1'] = 'CÓDIGO'; ws['K1'].font = bold_font; ws['K1'].alignment = center_align; ws['K1'].border = thin_border
+    ws.merge_cells('K3:L4'); ws['K3'] = 'FDA-25'; ws['K3'].alignment = center_align; ws['K3'].border = thin_border
+
+    # --- ¡LÍNEAS CORREGIDAS! ---
+    # Ahora accedemos a los datos como un diccionario con ['key']
+    ws.merge_cells('A6:F6')
+    ws['A6'].value = f"NOMBRE DEL PROFESOR: {datos_profesor['info']['nombre_completo']}"
+    
+    ws.merge_cells('G6:I6')
+    ws['G6'].value = f"TC: {'X' if datos_profesor['info']['es_tc'] else ''}   PA: {'X' if not datos_profesor['info']['es_tc'] else ''}"
+    # --- FIN DE LA CORRECCIÓN ---
+
+    headers = ['No.', 'CLAVE', 'ASIGNATURA', 'GPO.', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'HRS. T.', 'CARRERA']
+    ws.append(headers)
+    for cell in ws[8]: cell.font = bold_font; cell.alignment = center_align; cell.border = thin_border
+
+    row_num, total_horas = 9, 0
+    for i, clase in enumerate(datos_profesor['clases'], 1):
+        hora_str = f"{clase['hora_inicio']}\n{clase['hora_fin']}"
+        row_data = [i, clase['clave'], clase['asignatura'], clase['grupo'],
+            hora_str if clase['dia_raw'] == 'lunes' else '', hora_str if clase['dia_raw'] == 'martes' else '',
+            hora_str if clase['dia_raw'] == 'miercoles' else '', hora_str if clase['dia_raw'] == 'jueves' else '',
+            hora_str if clase['dia_raw'] == 'viernes' else '', hora_str if clase['dia_raw'] == 'sabado' else '',
+            f"{clase['horas_totales']:.1f}", clase['carrera']]
+        ws.append(row_data)
+        total_horas += clase['horas_totales']
+        for cell in ws[row_num]: cell.alignment = center_align; cell.border = thin_border
+        ws[f'C{row_num}'].alignment = left_align
+        row_num += 1
+
+    ws.merge_cells(f'A{row_num}:J{row_num}'); ws[f'A{row_num}'].value = 'TOTAL DE HORAS FRENTE A GRUPO'; ws[f'A{row_num}'].font = bold_font; ws[f'A{row_num}'].alignment = Alignment(horizontal='right'); ws[f'A{row_num}'].border = thin_border
+    ws[f'K{row_num}'].value = f"{total_horas:.1f}"; ws[f'K{row_num}'].font = bold_font; ws[f'K{row_num}'].alignment = center_align; ws[f'K{row_num}'].border = thin_border
+    ws[f'L{row_num}'].border = thin_border
+
+    column_widths = {'A': 5, 'B': 15, 'C': 40, 'D': 8, 'E': 12, 'F': 12, 'G': 12, 'H': 12, 'I': 12, 'J': 12, 'K': 8, 'L': 15}
+    for col, width in column_widths.items(): ws.column_dimensions[col].width = width
+
+    buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+    return buffer
+
 
 @app.route('/dashboard')
 @login_required
@@ -3055,118 +3252,18 @@ def obtener_dia_correcto(dia_semana):
 @app.route('/admin/horarios/profesores')
 @login_required
 def admin_horario_profesores():
-    if not current_user.is_admin():
-        flash('No tienes permisos para acceder a esta página.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    try:
-        # Obtener horarios ordenados por día de semana y hora
-        asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
-        
-        # Ordenar por día de semana (Lunes a Viernes) y hora
-        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
-        
-        horarios_por_profesor = {}
-        
-        # Mapeo de días en minúsculas a días con tilde
-        dias_map = {
-            'lunes': 'Lunes',
-            'martes': 'Martes',
-            'miercoles': 'Miércoles',
-            'jueves': 'Jueves',
-            'viernes': 'Viernes',
-            'sabado': 'Sábado',
-            'domingo': 'Domingo'
-        }
-        
-        for asignacion in asignaciones:
-            profesor_nombre = asignacion.profesor.get_nombre_completo()
-            
-            if profesor_nombre not in horarios_por_profesor:
-                horarios_por_profesor[profesor_nombre] = {
-                    'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
-                }
-            
-            info_clase = (
-                f"{asignacion.materia.nombre}<br>"
-                f"<small class='text-muted'>{asignacion.materia.codigo}</small><br>"
-                f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
-            )
-            
-            # Usar el mapeo para obtener el día con tilde
-            dia_correcto = dias_map.get(asignacion.dia_semana, asignacion.dia_semana.capitalize())
-            if dia_correcto in horarios_por_profesor[profesor_nombre]:
-                horarios_por_profesor[profesor_nombre][dia_correcto].append(info_clase)
-
-    except Exception as e:
-        flash(f'Error al cargar los horarios: {e}', 'danger')
-        horarios_por_profesor = {}
-
-    return render_template('admin/admin_horario_profesores.html', horarios_data=horarios_por_profesor)
-
-# ==========================================
-# VISTA DE HORARIOS POR GRUPO PARA ADMIN
-# ==========================================
+    if not current_user.is_admin(): abort(403)
+    
+    horarios_data = procesar_horarios(agrupar_por='profesor')
+    return render_template('admin/admin_horario_profesores.html', horarios_data=horarios_data)
 
 @app.route('/admin/horarios/grupos')
 @login_required
 def admin_horario_grupos():
-    if not current_user.is_admin():
-        flash('No tienes permisos para acceder a esta página.', 'danger')
-        return redirect(url_for('dashboard'))
+    if not current_user.is_admin(): abort(403)
 
-    try:
-        # Obtener horarios ordenados por día de semana y hora
-        asignaciones = HorarioAcademico.query.filter_by(activo=True).all()
-        
-        # Ordenar por día de semana (Lunes a Viernes) y hora
-        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
-        
-        horarios_por_grupo = {}
-        
-        # Mapeo de días en minúsculas a días con tilde
-        dias_map = {
-            'lunes': 'Lunes',
-            'martes': 'Martes',
-            'miercoles': 'Miércoles',
-            'jueves': 'Jueves',
-            'viernes': 'Viernes',
-            'sabado': 'Sábado',
-            'domingo': 'Domingo'
-        }
-        
-        for asignacion in asignaciones:
-            # Buscar el grupo al que pertenece esta materia
-            grupos_materia = asignacion.materia.grupos
-            
-            if grupos_materia:
-                # Tomar el primer grupo (una materia puede estar en varios grupos)
-                grupo = grupos_materia[0]
-                grupo_nombre = grupo.codigo
-                
-                if grupo_nombre not in horarios_por_grupo:
-                    horarios_por_grupo[grupo_nombre] = {
-                        'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []
-                    }
-                
-                info_clase = (
-                    f"{asignacion.materia.nombre}<br>"
-                    f"Prof: {asignacion.profesor.get_nombre_completo()}<br>"
-                    f"{asignacion.get_hora_inicio_str()} - {asignacion.get_hora_fin_str()}"
-                )
-
-                # Usar el mapeo para obtener el día con tilde
-                dia_correcto = dias_map.get(asignacion.dia_semana, asignacion.dia_semana.capitalize())
-                if dia_correcto in horarios_por_grupo[grupo_nombre]:
-                    horarios_por_grupo[grupo_nombre][dia_correcto].append(info_clase)
-
-    except Exception as e:
-        flash(f'Error al cargar los horarios: {e}', 'danger')
-        horarios_por_grupo = {}
-
-    
-    return render_template('admin/admin_horario_grupos.html', horarios_data=horarios_por_grupo)
-
+    horarios_data = procesar_horarios(agrupar_por='grupo')
+    return render_template('admin/admin_horario_grupos.html', horarios_data=horarios_data)
 
 # ==========================================
 # EXPORTAR HORARIOS POR PROFESOR (WORD EXCEL)
@@ -3417,127 +3514,82 @@ def exportar_horarios_grupo_pdf():
     table.setStyle(style); doc.build([table]); buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name='horarios_por_grupo.pdf', mimetype='application/pdf')
 
+# ==========================================
+# EXPORTAR HORARIO INDIVIDUAL POR GRUPO (NUEVA RUTA)
+# ==========================================
+@app.route('/admin/horarios/grupos/exportar-individual/<nombre_grupo>')
+@login_required
+def exportar_horario_individual_excel(nombre_grupo):
+    if not current_user.is_admin():
+        abort(403)
+
+    # 1. Obtenemos TODOS los horarios de grupos usando nuestra función cerebro
+    todos_los_horarios = procesar_horarios(agrupar_por='grupo')
+    
+    # 2. Buscamos el horario del grupo específico que nos pidieron
+    horario_especifico = todos_los_horarios.get(nombre_grupo)
+
+    if not horario_especifico:
+        flash(f'No se encontró el horario para el grupo "{nombre_grupo}".', 'danger')
+        return redirect(url_for('admin_horario_grupos'))
+
+    # 3. Limpiamos el HTML para que se vea bien en Excel
+    datos_para_excel = {}
+    for dia, clases in horario_especifico.items():
+        clases_limpias = [clase.replace('<br>', '\n').replace('<small class=\'text-muted\'>', '').replace('</small>', '') for clase in clases]
+        datos_para_excel[dia] = "\n\n".join(clases_limpias)
+
+    # 4. Creamos el DataFrame y el archivo Excel
+    df = pd.DataFrame([datos_para_excel], index=[nombre_grupo])
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name=f'Horario {nombre_grupo}')
+        worksheet = writer.sheets[f'Horario {nombre_grupo}']
+        worksheet.column_dimensions['A'].width = 30  # Ancho para la columna del grupo
+        for col_letter in ['B', 'C', 'D', 'E', 'F']:
+            worksheet.column_dimensions[col_letter].width = 40 # Ancho para los días
+
+    output.seek(0)
+
+    # 5. Enviamos el archivo
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f'horario_{nombre_grupo.replace(" ", "_")}.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 
 # ===================================================================
-# = RUTAS PARA JEFES DE CARRERA - GESTIÓN DE HORARIOS
+# RUTAS PARA JEFES DE CARRERA 
 # ===================================================================
 
 @app.route('/jefe/horarios/profesores')
 @login_required
 def jefe_ver_horarios_profesores():
-    if not current_user.is_jefe_carrera():
-        abort(403)
-
+    if not current_user.is_jefe_carrera(): abort(403)
     id_carrera = current_user.carrera_id
     if not id_carrera:
-        flash("No tienes una carrera asignada para ver horarios.", "warning")
+        flash("No tienes una carrera asignada.", "warning")
         return redirect(url_for('dashboard'))
 
-    try:
-        # Obtener horarios ordenados por día de semana y hora
-        asignaciones = HorarioAcademico.query.join(Materia).filter(
-            Materia.carrera_id == id_carrera,
-            HorarioAcademico.activo == True
-        ).all()
-        
-        # Ordenar por día de semana (Lunes a Viernes) y hora
-        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
-        
-        horarios_por_profesor = {}
-        
-        # Mapeo de días en minúsculas a días con tilde
-        dias_map = {
-            'lunes': 'Lunes',
-            'martes': 'Martes',
-            'miercoles': 'Miércoles',
-            'jueves': 'Jueves',
-            'viernes': 'Viernes',
-            'sabado': 'Sábado',
-            'domingo': 'Domingo'
-        }
-        
-        for a in asignaciones:
-            if not all([a.profesor, a.materia, a.horario]): continue
-            profesor_nombre = a.profesor.get_nombre_completo()
-            if profesor_nombre not in horarios_por_profesor:
-                horarios_por_profesor[profesor_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
-            
-            info = f"{a.materia.nombre}<br/><small class='text-muted'>{a.materia.codigo}</small><br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-            
-            # Usar el mapeo para obtener el día con tilde
-            dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
-            if dia_correcto in horarios_por_profesor[profesor_nombre]:
-                horarios_por_profesor[profesor_nombre][dia_correcto].append(info)
-                
-    except Exception as e:
-        flash(f"Error al cargar los horarios: {e}", "danger")
-        horarios_por_profesor = {}
-
-    return render_template('jefe/jefe_horario_profesores.html', horarios_data=horarios_por_profesor)
+    horarios_data = procesar_horarios(agrupar_por='profesor', carrera_id=id_carrera)
+    return render_template('jefe/jefe_horario_profesores.html', horarios_data=horarios_data)
 
 
 @app.route('/jefe/horarios/grupos')
 @login_required
 def jefe_ver_horarios_grupos():
-    if not current_user.is_jefe_carrera():
-        abort(403)
-
+    if not current_user.is_jefe_carrera(): abort(403)
     id_carrera = current_user.carrera_id
     if not id_carrera:
-        flash("No tienes una carrera asignada para ver horarios.", "warning")
+        flash("No tienes una carrera asignada.", "warning")
         return redirect(url_for('dashboard'))
 
-    try:
-        # Obtener horarios ordenados por día de semana y hora
-        asignaciones = HorarioAcademico.query.join(Materia).filter(
-            Materia.carrera_id == id_carrera,
-            HorarioAcademico.activo == True
-        ).all()
-        
-        # Ordenar por día de semana (Lunes a Viernes) y hora
-        asignaciones.sort(key=lambda h: (h.get_dia_orden(), h.horario.hora_inicio))
+    horarios_data = procesar_horarios(agrupar_por='grupo', carrera_id=id_carrera)
+    return render_template('jefe/jefe_horario_grupos.html', horarios_data=horarios_data)
 
-        horarios_por_grupo = {}
-        
-        # Mapeo de días en minúsculas a días con tilde
-        dias_map = {
-            'lunes': 'Lunes',
-            'martes': 'Martes',
-            'miercoles': 'Miércoles',
-            'jueves': 'Jueves',
-            'viernes': 'Viernes',
-            'sabado': 'Sábado',
-            'domingo': 'Domingo'
-        }
-        
-        for a in asignaciones:
-            if not all([a.profesor, a.materia, a.horario]): continue
-            
-            # Buscar el grupo al que pertenece esta materia
-            grupos_materia = a.materia.grupos
-            
-            if grupos_materia:
-                # Tomar el primer grupo (filtrar solo grupos de esta carrera)
-                grupos_carrera = [g for g in grupos_materia if g.carrera_id == id_carrera]
-                if grupos_carrera:
-                    grupo = grupos_carrera[0]
-                    grupo_nombre = grupo.codigo
-                    
-                    if grupo_nombre not in horarios_por_grupo:
-                        horarios_por_grupo[grupo_nombre] = {'Lunes': [], 'Martes': [], 'Miércoles': [], 'Jueves': [], 'Viernes': []}
-                    
-                    info = f"{a.materia.nombre}<br/>Prof: {a.profesor.get_nombre_completo()}<br/>{a.get_hora_inicio_str()} - {a.get_hora_fin_str()}"
-                    
-                    # Usar el mapeo para obtener el día con tilde
-                    dia_correcto = dias_map.get(a.dia_semana, a.dia_semana.capitalize())
-                    if dia_correcto in horarios_por_grupo[grupo_nombre]:
-                        horarios_por_grupo[grupo_nombre][dia_correcto].append(info)
-                
-    except Exception as e:
-        flash(f"Error al cargar los horarios: {e}", "danger")
-        horarios_por_grupo = {}
-
-    return render_template('jefe/jefe_horario_grupos.html', horarios_data=horarios_por_grupo)
 
 # --- Rutas de Exportación para Jefes ---
 
@@ -3742,6 +3794,202 @@ def exportar_jefe_horarios_grupo_pdf():
     except Exception as e:
         flash(f"Error al generar el archivo PDF: {e}", "danger")
         return redirect(url_for('jefe/jefe_ver_horarios_grupos'))
+    
+# =================================================================
+# RUTAS DE EXPORTACIÓN EN FORMATO FDA (ADMIN)
+# =================================================================
+# =================================================================
+# RUTA DE EXPORTACIÓN FDA PARA ADMIN (CORREGIDA)
+# =================================================================
+@app.route('/admin/horarios/profesores/exportar/formato-fda/<profesor_nombre>')
+@login_required
+def exportar_admin_fda_profesor(profesor_nombre):
+    if not current_user.is_admin(): abort(403)
+
+    try:
+        horarios_data = procesar_horarios_formato_fda()
+        datos_profesor = horarios_data.get(profesor_nombre)
+
+        if not datos_profesor:
+            flash(f'No se encontraron datos para el profesor {profesor_nombre}.', 'danger')
+            return redirect(url_for('admin_horario_profesores'))
+            
+        buffer = generar_excel_formato_fda(datos_profesor)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f'carga_horaria_{profesor_nombre.replace(" ", "_")}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        flash(f"Ocurrió un error al generar el reporte: {e}", "danger")
+        return redirect(url_for('admin_horario_profesores'))
+# =================================================================
+# RUTAS DE EXPORTACIÓN EN FORMATO FDA (JEFE DE CARRERA)
+# =================================================================
+@app.route('/jefe/horarios/profesores/exportar/formato-fda/<profesor_nombre>')
+@login_required
+def exportar_jefe_fda_profesor(profesor_nombre):
+    if not current_user.is_jefe_carrera(): abort(403)
+    id_carrera = current_user.carrera_id
+    if not id_carrera:
+        flash("No tienes una carrera asignada.", "warning")
+        return redirect(url_for('dashboard'))
+
+    try:
+        horarios_data = procesar_horarios_formato_fda(carrera_id=id_carrera)
+        datos_profesor = horarios_data.get(profesor_nombre)
+
+        if not datos_profesor:
+            flash(f'No se encontraron datos para {profesor_nombre} en tu carrera.', 'danger')
+            return redirect(url_for('jefe_ver_horarios_profesores'))
+            
+        buffer = generar_excel_formato_fda(datos_profesor)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f'carga_horaria_{profesor_nombre.replace(" ", "_")}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        flash(f"Ocurrió un error al generar el reporte: {e}", "danger")
+        return redirect(url_for('jefe_ver_horarios_profesores'))
+    
+
+def _generar_excel_horario_profesor(profesor_nombre):
+    """
+    Función auxiliar interna que genera y retorna el archivo Excel del horario.
+    """
+    try:
+        # =====================================================================
+        # 1. OBTENER DATOS (SECCIÓN A MODIFICAR POR TI)
+        # =====================================================================
+        profesor = User.query.filter((User.nombre + ' ' + User.apellido) == profesor_nombre).first()
+        if not profesor:
+            return "Profesor no encontrado", 404
+
+        # --- LÓGICA DE CONSULTA DE HORARIO (DEBES ADAPTARLA) ---
+        horario_profesor = {
+            'Lunes': { '08:00': 'Gestión a la Administración', '09:00': 'Gestión a la Administración' },
+            'Martes': { '08:00': 'Tecnología de Negocios 9MSC1', '09:00': 'Tecnología de Negocios 9MSC1' },
+            'Jueves': { '11:00': 'Tutoria' }
+        }
+
+        # --- LÓGICA CORREGIDA PARA "TIPO DE HORAS" ---
+        tipo_horas_labels = [
+            "Impartición de Curso", "Asesoría", "Tutoría",
+            "Apoyo a la Gestión", "Dual", "Investigación"
+        ]
+        tipo_horas_valores = {}
+        if profesor.tipo_profesor == 'Tiempo Completo':
+            tipo_horas_valores = {
+                "Impartición de Curso": 24, "Asesoría": 0, "Tutoría": 1,
+                "Apoyo a la Gestión": 15, "Dual": 0, "Investigación": 0
+            }
+
+    
+        # =====================================================================
+        # 2. CREACIÓN Y CONFIGURACIÓN DEL EXCEL (CÓDIGO COMPLETO)
+        # =====================================================================
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Carga Horaria"
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        top_border = Border(top=Side(style='thin'))
+        bold_font_16 = Font(bold=True, size=16)
+        bold_font = Font(bold=True)
+        center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        small_font_center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws.column_dimensions['A'].width = 14
+        for col in ['B', 'C', 'D', 'E', 'F', 'J']: ws.column_dimensions[col].width = 20
+        for col in ['G', 'H', 'I']: ws.column_dimensions[col].width = 3
+        ws.merge_cells('B2:K2'); cell = ws['B2']; cell.value = 'Carga Horaria'; cell.font = bold_font_16; cell.alignment = center_align
+        ws.merge_cells('B3:D3'); ws['B3'].value = 'Área: Dirección Academica'
+        ws.merge_cells('E3:G3'); ws['E3'].value = 'Vigencia: 16/05/2017'
+        ws.merge_cells('H3:J3'); ws['H3'].value = 'Código: FDA-02.5'
+        ws['B5'].value = 'Nombre:'; ws.merge_cells('C5:F5'); ws['C5'].value = profesor_nombre
+        ws['G5'].value = 'Prof. Asignatura'; ws.merge_cells('I5:J5'); ws['I5'].value = 'Prof. Tiempo Completo'
+        if profesor.tipo_profesor == 'Tiempo Completo':
+            ws['K5'].value = 'x'; ws['K5'].border = thin_border; ws['K5'].alignment = center_align
+        else:
+            ws['H5'].value = 'x'; ws['H5'].border = thin_border; ws['H5'].alignment = center_align
+        ws['B7'].value = 'Periodo:'; ws['C7'].value = 'Septiembre - Diciembre'
+        ws['E7'].value = 'Fecha de Inicio:'; ws['F7'].value = datetime.now().strftime("%Y-%m-%d")
+        ws['H7'].value = 'Plan de Estudios:'; ws['I7'].value = '2018'
+        ws.merge_cells('B9:K9'); ws['B9'].value = 'Instrucciones: Introducir nombre de la Asignatura, Salón y Grupo dentro de la celda correspondiente al día y la hora que será impartida.'; ws['B9'].alignment = Alignment(wrap_text=True)
+        dias_semana_map = {'Lunes': 'B', 'Martes': 'C', 'Miercoles': 'D', 'Jueves': 'E', 'Viernes': 'F', 'Sábado': 'J'}
+        header_horario = {'A': 'Horario', **{col: dia for dia, col in dias_semana_map.items()}}
+        for col, text in header_horario.items():
+            cell = ws[f'{col}12']; cell.value = text; cell.font = bold_font; cell.alignment = center_align; cell.border = thin_border; cell.fill = PatternFill("solid", fgColor="D9D9D9")
+        current_row = 13
+        for hour in range(7, 22):
+            hora_str_key = f"{hour:02d}:00"
+            ws[f'A{current_row}'].value = f"{hora_str_key}:00"
+            for dia, col in dias_semana_map.items():
+                cell = ws[f'{col}{current_row}']; cell.value = horario_profesor.get(dia, {}).get(hora_str_key, ''); cell.alignment = small_font_center_align; cell.font = Font(size=9)
+            for col in ['A'] + list(dias_semana_map.values()): ws[f'{col}{current_row}'].border = thin_border
+            current_row += 1; ws.row_dimensions[current_row].height = 4; current_row += 1
+        total_row_idx = current_row - 1
+        ws[f'A{total_row_idx}'].value = 'Total'; ws[f'A{total_row_idx}'].font = bold_font
+        for dia, col in dias_semana_map.items():
+            count = len(horario_profesor.get(dia, {}))
+            ws[f'{col}{total_row_idx}'].value = count if count > 0 else 0; ws[f'{col}{total_row_idx}'].font = bold_font; ws[f'{col}{total_row_idx}'].alignment = center_align
+        row_offset = total_row_idx + 2
+        ws.merge_cells(f'B{row_offset}:C{row_offset}'); ws[f'B{row_offset}'].value = 'Tipo de Horas'; ws[f'B{row_offset}'].font = bold_font
+        ws[f'D{row_offset}'].value = 'Horas'; ws[f'D{row_offset}'].font = bold_font
+        total_general = 0
+        for i, label in enumerate(tipo_horas_labels, 1):
+            valor = tipo_horas_valores.get(label, '')
+            ws[f'B{row_offset + i}'].value = label
+            ws[f'D{row_offset + i}'].value = valor
+            total_general += valor if isinstance(valor, int) else 0
+        total_tipo_horas_row = row_offset + len(tipo_horas_labels) + 1
+        ws[f'B{total_tipo_horas_row}'].value = 'Total de Horas'; ws[f'B{total_tipo_horas_row}'].font = bold_font
+        ws[f'D{total_tipo_horas_row}'].value = total_general if profesor.tipo_profesor == 'Tiempo Completo' else ''; ws[f'D{total_tipo_horas_row}'].font = bold_font
+        ws.merge_cells(f'B{total_tipo_horas_row + 1}:F{total_tipo_horas_row + 1}'); ws[f'B{total_tipo_horas_row + 1}'].value = '*Solo llenar en caso de ser Profesor de Tiempo Completo'
+        firma_row = total_tipo_horas_row + 4
+        ws[f'B{firma_row}'].value = 'Elaboró:'; ws[f'E{firma_row}'].value = 'Autorizó:'; ws[f'H{firma_row}'].value = 'Recibió:'
+        firma_row += 4
+        ws.merge_cells(f'B{firma_row}:D{firma_row}'); ws[f'B{firma_row}'].value = profesor_nombre; ws[f'B{firma_row}'].alignment = center_align
+        ws.merge_cells(f'E{firma_row}:G{firma_row}'); ws[f'E{firma_row}'].value = 'M. en E. Héctor Manuel Gómez Martínez'; ws[f'E{firma_row}'].alignment = center_align
+        ws.merge_cells(f'H{firma_row}:J{firma_row}'); ws[f'H{firma_row}'].value = profesor_nombre; ws[f'H{firma_row}'].alignment = center_align
+        firma_row += 1
+        ws.merge_cells(f'B{firma_row}:D{firma_row}'); ws[f'B{firma_row}'].value = 'Responsable del PE de Ingeniería en: ISC'; ws[f'B{firma_row}'].alignment = center_align
+        ws.merge_cells(f'E{firma_row}:G{firma_row}'); ws[f'E{firma_row}'].value = 'Director Académico'; ws[f'E{firma_row}'].alignment = center_align
+        ws.merge_cells(f'H{firma_row}:J{firma_row}'); ws[f'H{firma_row}'].value = 'Profesor de Tiempo Completo'; ws[f'H{firma_row}'].alignment = center_align
+        firma_row += 2
+        for cols in [('B','D'), ('E','G'), ('H','J')]:
+            ws.merge_cells(f'{cols[0]}{firma_row}:{cols[1]}{firma_row}'); cell = ws[f'{cols[0]}{firma_row}']; cell.value = 'Firma'; cell.alignment = center_align; cell.border = top_border
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = f"Horario_{profesor.nombre.replace(' ','_')}_{profesor.apellido.replace(' ','_')}.xlsx"
+        return send_file(output, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Ocurrió un error al generar el archivo Excel: {e}", 500
+
+
+# 2. RUTA ORIGINAL (PARA ADMIN), AHORA SIMPLEMENTE LLAMA A LA FUNCIÓN AUXILIAR
+@app.route('/exportar/horario-excel/<profesor_nombre>')
+# @login_required
+def exportar_excel_profesor(profesor_nombre):
+    return _generar_excel_horario_profesor(profesor_nombre)
+
+
+# 3. NUEVA RUTA (PARA JEFE DE CARRERA), LLAMA A LA MISMA FUNCIÓN AUXILIAR
+@app.route('/exportar/horario-jefe-excel/<profesor_nombre>')
+# @login_required
+def exportar_jefe_excel_profesor(profesor_nombre):
+    # Aquí podrías agregar lógica de permisos si es necesario,
+    # por ejemplo, verificar que el jefe de carrera solo pueda
+    # exportar horarios de profesores de su carrera.
+    return _generar_excel_horario_profesor(profesor_nombre)
+    
 
 with app.app_context():
     init_db()
