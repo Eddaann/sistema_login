@@ -73,6 +73,12 @@ class GeneradorHorariosOR:
             if not self.grupo:
                 raise ValueError(f"No se encontró el grupo con ID {self.grupo_id}")
             
+            # Actualizar parámetros con los datos del grupo
+            self.carrera_id = self.grupo.carrera_id
+            self.cuatrimestre = self.grupo.cuatrimestre
+            # Convertir turno de 'M'/'V' a 'matutino'/'vespertino'
+            self.turno = 'matutino' if self.grupo.turno == 'M' else 'vespertino'
+            
             # Obtener materias del grupo
             self.materias = [m for m in self.grupo.materias if m.activa]
             
@@ -87,7 +93,7 @@ class GeneradorHorariosOR:
             print(f"📚 Cargando datos del grupo {self.grupo.codigo}:")
             print(f"   - Carrera: {self.grupo.get_carrera_nombre()}")
             print(f"   - Cuatrimestre: {self.grupo.cuatrimestre}")
-            print(f"   - Turno: {self.grupo.get_turno_display()}")
+            print(f"   - Turno: {self.grupo.get_turno_display()} ({self.turno})")
             print(f"   - Materias asignadas: {len(self.materias)}")
             print(f"   - Profesores asignados: {len(self.profesores)}")
         else:
@@ -120,14 +126,21 @@ class GeneradorHorariosOR:
         # Cargar horarios según el turno
         if self.turno == 'ambos':
             self.horarios = Horario.query.filter_by(activo=True).order_by(Horario.orden).all()
+            print(f"⏰ Usando TODOS los horarios (ambos turnos)")
         else:
             self.horarios = Horario.query.filter_by(
                 turno=self.turno,
                 activo=True
             ).order_by(Horario.orden).all()
+            print(f"⏰ Filtrando horarios solo del turno: {self.turno}")
 
         if not self.horarios:
             raise ValueError(f"❌ No hay horarios configurados para el turno {self.turno}")
+        
+        # Mostrar rango de horarios cargados
+        if self.horarios:
+            print(f"   📍 Horarios cargados: {self.horarios[0].get_hora_inicio_str()} - {self.horarios[-1].get_hora_fin_str()}")
+            print(f"   📊 Total de bloques horarios: {len(self.horarios)}")
 
         # Cargar disponibilidades de profesores
         self.cargar_disponibilidades()
@@ -241,7 +254,7 @@ class GeneradorHorariosOR:
                     asignaciones_profesor_horario = []
                     for materia in self.materias:
                         var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                        if var:
+                        if var is not None:
                             asignaciones_profesor_horario.append(var)
 
                     if asignaciones_profesor_horario:
@@ -258,7 +271,7 @@ class GeneradorHorariosOR:
                     if not disponible:
                         for materia in self.materias:
                             var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                            if var:
+                            if var is not None:
                                 self.model.Add(var == 0)
 
     def restriccion_no_conflicto_horario(self):
@@ -271,7 +284,7 @@ class GeneradorHorariosOR:
                 for profesor in self.profesores:
                     for materia in self.materias:
                         var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                        if var:
+                        if var is not None:
                             asignaciones_horario.append(var)
 
                 if asignaciones_horario:
@@ -292,7 +305,7 @@ class GeneradorHorariosOR:
                 for horario in self.horarios:
                     for dia_idx in range(len(self.dias_semana)):
                         var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                        if var:
+                        if var is not None:
                             asignaciones_profesor.append(var)
 
             if asignaciones_profesor:
@@ -309,7 +322,7 @@ class GeneradorHorariosOR:
                 for profesor in self.profesores:
                     for horario in self.horarios:
                         var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                        if var:
+                        if var is not None:
                             asignaciones_materia_dia.append(var)
                 
                 if asignaciones_materia_dia:
@@ -322,7 +335,7 @@ class GeneradorHorariosOR:
                     for profesor in self.profesores:
                         for horario in self.horarios:
                             var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                            if var:
+                            if var is not None:
                                 asignaciones_materia_dia.append(var)
                     
                     if asignaciones_materia_dia:
@@ -342,7 +355,7 @@ class GeneradorHorariosOR:
                     for profesor in self.profesores:
                         for horario in self.horarios:
                             var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                            if var:
+                            if var is not None:
                                 asignaciones_materia_dia.append(var)
                     
                     if asignaciones_materia_dia:
@@ -400,7 +413,7 @@ class GeneradorHorariosOR:
                     # No asignar este profesor en el mismo horario y día
                     for materia in self.materias:
                         var = self.variables.get((profesor_id, materia.id, horario_existente.horario_id, dia_idx))
-                        if var:
+                        if var is not None:
                             self.model.Add(var == 0)  # Forzar que no se asigne
 
     def agregar_funcion_objetivo(self):
@@ -418,19 +431,34 @@ class GeneradorHorariosOR:
                 for horario in self.horarios:
                     for dia_idx in range(len(self.dias_semana)):
                         var = self.variables.get((profesor.id, materia.id, horario.id, dia_idx))
-                        if var:
+                        if var is not None:
                             carga_profesor.append(var)
 
             if carga_profesor:
                 cargas_horarias.append(sum(carga_profesor))
 
         if cargas_horarias:
-            # Minimizar la varianza de cargas horarias
+            # En lugar de minimizar varianza (que requiere operaciones no soportadas),
+            # minimizamos la diferencia entre la carga máxima y mínima
+            # Esto es más simple y logra una distribución más equitativa
+            
             n_profesores = len(cargas_horarias)
             if n_profesores > 1:
-                media_carga = sum(cargas_horarias) / n_profesores
-                varianza = sum((carga - media_carga) ** 2 for carga in cargas_horarias)
-                self.model.Minimize(varianza)
+                # Crear variables para max y min
+                max_carga = self.model.NewIntVar(0, 50, 'max_carga')
+                min_carga = self.model.NewIntVar(0, 50, 'min_carga')
+                
+                # max_carga debe ser mayor o igual a todas las cargas
+                for carga in cargas_horarias:
+                    self.model.Add(max_carga >= carga)
+                
+                # min_carga debe ser menor o igual a todas las cargas
+                for carga in cargas_horarias:
+                    self.model.Add(min_carga <= carga)
+                
+                # Minimizar la diferencia entre máximo y mínimo
+                diferencia = max_carga - min_carga
+                self.model.Minimize(diferencia)
 
     def resolver_modelo(self):
         """Resolver el modelo CP-SAT"""

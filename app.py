@@ -785,6 +785,76 @@ def profesor_horarios():
                          materias_unicas=materias_unicas,
                          dias_semana=dias_semana)
 
+@app.route('/profesor/disponibilidad', methods=['GET', 'POST'])
+@login_required
+def profesor_disponibilidad():
+    """Gestionar disponibilidad horaria del profesor"""
+    if not current_user.is_profesor():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    dias_semana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+    
+    # Obtener todos los horarios disponibles del sistema
+    horarios = Horario.query.filter_by(activo=True).order_by(Horario.orden).all()
+    
+    if request.method == 'POST':
+        try:
+            # Eliminar disponibilidades anteriores (pero mantener inactivas para historial)
+            DisponibilidadProfesor.query.filter_by(
+                profesor_id=current_user.id,
+                activo=True
+            ).update({DisponibilidadProfesor.activo: False})
+            
+            # Procesar los datos del formulario
+            disponibilidades_creadas = 0
+            for dia in dias_semana:
+                for horario in horarios:
+                    checkbox_name = f'disponible_{dia}_{horario.id}'
+                    # Si el checkbox está marcado, significa que SÍ está disponible
+                    disponible = checkbox_name in request.form
+                    
+                    # Crear registro de disponibilidad
+                    nueva_disponibilidad = DisponibilidadProfesor(
+                        profesor_id=current_user.id,
+                        horario_id=horario.id,
+                        dia_semana=dia,
+                        disponible=disponible,
+                        creado_por=current_user.id
+                    )
+                    db.session.add(nueva_disponibilidad)
+                    disponibilidades_creadas += 1
+            
+            db.session.commit()
+            flash(f'✅ Disponibilidad actualizada correctamente. Se crearon {disponibilidades_creadas} registros.', 'success')
+            return redirect(url_for('profesor_disponibilidad'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ Error al guardar la disponibilidad: {str(e)}', 'error')
+            print(f"Error al guardar disponibilidad: {e}")
+    
+    # GET: Obtener disponibilidades actuales del profesor
+    disponibilidades_actuales = DisponibilidadProfesor.query.filter_by(
+        profesor_id=current_user.id,
+        activo=True
+    ).all()
+    
+    # Crear diccionario para acceso rápido
+    disponibilidad_dict = {}
+    for disp in disponibilidades_actuales:
+        key = f"{disp.dia_semana}_{disp.horario_id}"
+        disponibilidad_dict[key] = disp.disponible
+    
+    # Si no hay disponibilidades, asumir que está disponible en todo (para facilitar primer uso)
+    tiene_disponibilidades = len(disponibilidades_actuales) > 0
+    
+    return render_template('profesor/disponibilidad.html',
+                         dias_semana=dias_semana,
+                         horarios=horarios,
+                         disponibilidad_dict=disponibilidad_dict,
+                         tiene_disponibilidades=tiene_disponibilidades)
+
 # ==================== RUTAS DE GESTIÓN DE GRUPOS (ADMIN) ====================
 
 @app.route('/admin/grupos')

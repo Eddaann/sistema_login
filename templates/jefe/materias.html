@@ -91,12 +91,12 @@
                                     {% for materia in materias %}
                                     <tr>
                                         <td>
-                                            <span class="badge badge-dark">{{ materia.codigo }}</span>
+                                            <span class="badge bg-dark text-white">{{ materia.codigo }}</span>
                                         </td>
-                                        <td>{{ materia.nombre }}</td>
+                                        <td><strong>{{ materia.nombre }}</strong></td>
                                         <td>{{ materia.get_cuatrimestre_display() }}</td>
                                         <td>
-                                            <span class="badge badge-info">{{ materia.get_ciclo_escolar()['ciclo'] }}</span>
+                                            <span class="badge bg-info text-dark">{{ materia.get_ciclo_escolar()['ciclo'] }}</span>
                                             <br>
                                             <small class="text-muted">{{ materia.get_ciclo_escolar()['nombre'] }}</small>
                                         </td>
@@ -104,9 +104,9 @@
                                         <td>{{ materia.get_horas_totales() }}</td>
                                         <td>
                                             {% if materia.activa %}
-                                                <span class="badge badge-success">Activa</span>
+                                                <span class="badge bg-success text-white">Activa</span>
                                             {% else %}
-                                                <span class="badge badge-danger">Inactiva</span>
+                                                <span class="badge bg-danger text-white">Inactiva</span>
                                             {% endif %}
                                         </td>
                                         <td>

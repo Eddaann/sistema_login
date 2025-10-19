@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Disponibilidad Horaria{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-calendar-check me-2"></i>
+                Mi Disponibilidad Horaria
+            </h2>
+            <div>
+                <a href="{{ url_for('profesor_panel') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Volver al Panel
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información importante -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h5 class="alert-heading">
+                <i class="fas fa-info-circle me-2"></i>
+                Instrucciones
+            </h5>
+            <p class="mb-2">
+                Marca las casillas correspondientes a los <strong>horarios en los que SÍ estás disponible</strong> para impartir clases.
+            </p>
+            <ul class="mb-0">
+                <li><strong>Casilla marcada (✓):</strong> Estás disponible en ese horario</li>
+                <li><strong>Casilla sin marcar:</strong> NO estás disponible en ese horario</li>
+                <li>El sistema usará esta información al generar horarios automáticamente</li>
+                <li>Puedes actualizar tu disponibilidad en cualquier momento</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Formulario de disponibilidad -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Seleccionar Horarios Disponibles
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="disponibilidadForm">
+                    
+                    <!-- Botones de selección rápida -->
+                    <div class="mb-4 d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-success btn-sm" onclick="seleccionarTodo()">
+                            <i class="fas fa-check-double me-1"></i>
+                            Seleccionar Todo
+                        </button>
+                        <button type="button" class="btn btn-warning btn-sm" onclick="deseleccionarTodo()">
+                            <i class="fas fa-times me-1"></i>
+                            Deseleccionar Todo
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="seleccionarDia('lunes')">
+                            Lunes Completo
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="seleccionarDia('martes')">
+                            Martes Completo
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="seleccionarDia('miercoles')">
+                            Miércoles Completo
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="seleccionarDia('jueves')">
+                            Jueves Completo
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" onclick="seleccionarDia('viernes')">
+                            Viernes Completo
+                        </button>
+                    </div>
+
+                    <!-- Tabla de disponibilidad -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="15%">Horario</th>
+                                    {% for dia in dias_semana %}
+                                    <th class="text-center">{{ dia|capitalize }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for horario in horarios %}
+                                <tr>
+                                    <td class="fw-bold bg-light">
+                                        <i class="fas fa-clock me-2"></i>
+                                        {{ horario.get_hora_inicio_str() }} - {{ horario.get_hora_fin_str() }}
+                                    </td>
+                                    {% for dia in dias_semana %}
+                                    <td class="text-center">
+                                        {% set checkbox_name = 'disponible_' ~ dia ~ '_' ~ horario.id %}
+                                        {% set key = dia ~ '_' ~ horario.id %}
+                                        {% set is_checked = disponibilidad_dict.get(key, not tiene_disponibilidades) %}
+                                        
+                                        <div class="form-check d-inline-block">
+                                            <input 
+                                                class="form-check-input checkbox-disponibilidad checkbox-{{ dia }}" 
+                                                type="checkbox" 
+                                                name="{{ checkbox_name }}" 
+                                                id="{{ checkbox_name }}"
+                                                {% if is_checked %}checked{% endif %}
+                                                style="width: 25px; height: 25px; cursor: pointer;">
+                                        </div>
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Contador de horarios seleccionados -->
+                    <div class="alert alert-secondary mb-3">
+                        <strong>
+                            <i class="fas fa-check-circle me-2"></i>
+                            Horarios seleccionados: 
+                        </strong>
+                        <span id="contador" class="badge bg-primary fs-6">0</span>
+                        <span class="text-muted ms-2">(de {{ horarios|length * dias_semana|length }} disponibles)</span>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('profesor_panel') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Guardar Disponibilidad
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen visual -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Resumen de Disponibilidad
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    {% for dia in dias_semana %}
+                    <div class="col-md-2">
+                        <div class="border rounded p-2">
+                            <h6>{{ dia|capitalize }}</h6>
+                            <h3 class="mb-0 text-primary contador-dia-{{ dia }}">0</h3>
+                            <small class="text-muted">horas</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="diasData" style="display:none;" data-dias='{{ dias_semana|tojson|safe }}'></div>
+
+<script>
+// Función para contar checkboxes seleccionados
+function actualizarContador() {
+    const checkboxes = document.querySelectorAll('.checkbox-disponibilidad');
+    const seleccionados = Array.from(checkboxes).filter(cb => cb.checked).length;
+    document.getElementById('contador').textContent = seleccionados;
+    
+    // Actualizar contadores por día - leer desde data attribute
+    const diasData = document.getElementById('diasData').getAttribute('data-dias');
+    const dias = JSON.parse(diasData);
+    dias.forEach(dia => {
+        const checkboxesDia = document.querySelectorAll('.checkbox-' + dia);
+        const seleccionadosDia = Array.from(checkboxesDia).filter(cb => cb.checked).length;
+        document.querySelector('.contador-dia-' + dia).textContent = seleccionadosDia;
+    });
+}
+
+// Función para seleccionar todo
+function seleccionarTodo() {
+    const checkboxes = document.querySelectorAll('.checkbox-disponibilidad');
+    checkboxes.forEach(cb => cb.checked = true);
+    actualizarContador();
+}
+
+// Función para deseleccionar todo
+function deseleccionarTodo() {
+    const checkboxes = document.querySelectorAll('.checkbox-disponibilidad');
+    checkboxes.forEach(cb => cb.checked = false);
+    actualizarContador();
+}
+
+// Función para seleccionar un día completo
+function seleccionarDia(dia) {
+    const checkboxes = document.querySelectorAll('.checkbox-' + dia);
+    const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
+    
+    // Si todos están seleccionados, deseleccionar; si no, seleccionar
+    checkboxes.forEach(cb => cb.checked = !todosSeleccionados);
+    actualizarContador();
+}
+
+// Actualizar contador cuando cambie un checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarContador();
+    
+    const checkboxes = document.querySelectorAll('.checkbox-disponibilidad');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', actualizarContador);
+    });
+});
+
+// Confirmar antes de enviar
+document.getElementById('disponibilidadForm').addEventListener('submit', function(e) {
+    const seleccionados = Array.from(document.querySelectorAll('.checkbox-disponibilidad')).filter(cb => cb.checked).length;
+    
+    if (seleccionados === 0) {
+        if (!confirm('No has seleccionado ningún horario disponible. ¿Estás seguro de que deseas continuar?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+
+<style>
+.checkbox-disponibilidad:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.form-check-input:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
+
+.table td {
+    vertical-align: middle;
+}
+</style>
+
+{% endblock %}
