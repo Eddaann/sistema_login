@@ -24,132 +24,333 @@
             </div>
 
             <!-- Información del Profesor -->
-            <div class="card mb-4">
+            <div class="card mb-4 shadow-sm">
                 <div class="card-body">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h5 class="mb-1">{{ profesor.get_nombre_completo() }}</h5>
+                            <h5 class="mb-1">
+                                <i class="fas fa-user-tie me-2 text-primary"></i>
+                                {{ profesor.get_nombre_completo() }}
+                            </h5>
                             <p class="text-muted mb-1">
                                 <i class="fas fa-envelope me-2"></i>{{ profesor.email }}
                             </p>
-                            <p class="text-muted mb-0">
+                            <p class="mb-0">
                                 <span class="badge bg-info">{{ profesor.get_rol_display() }}</span>
                                 {% for carrera in profesor.carreras %}
-                                <span class="badge bg-secondary">{{ carrera.codigo }}</span>
+                                <span class="badge bg-secondary">{{ carrera.codigo }} - {{ carrera.nombre }}</span>
                                 {% endfor %}
                             </p>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="d-inline-block text-center">
-                                <h3 class="mb-0 text-primary">{{ profesor.materias|length }}</h3>
-                                <small class="text-muted">Materias Actuales</small>
+                            <div class="d-inline-block text-center p-3 bg-light rounded">
+                                <h3 class="mb-0 text-primary" id="materias-count">{{ profesor.materias|length }}</h3>
+                                <small class="text-muted">Materias Asignadas</small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Instrucciones -->
+            <div class="alert alert-info shadow-sm">
+                <h5 class="alert-heading">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Instrucciones
+                </h5>
+                <p class="mb-2">
+                    <strong>Marca las casillas</strong> de las materias que este profesor impartirá. 
+                    Los cambios se guardarán al hacer clic en "Guardar Asignaciones".
+                </p>
+                <ul class="mb-0">
+                    <li>Puedes <strong>seleccionar/deseleccionar todas</strong> las materias de un cuatrimestre con un solo clic</li>
+                    <li>Usa la <strong>búsqueda</strong> para encontrar materias rápidamente</li>
+                    <li>Solo se muestran materias de las carreras asignadas al profesor</li>
+                </ul>
+            </div>
+
             <!-- Formulario de Asignación -->
-            <div class="card">
+            <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Seleccionar Materias</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Asignar Materias</h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-light" onclick="seleccionarTodas()">
+                                <i class="fas fa-check-square me-1"></i>Seleccionar Todas
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="deseleccionarTodas()">
+                                <i class="fas fa-square me-1"></i>Deseleccionar Todas
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="">
+                    <!-- Buscador -->
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="buscar-materia" 
+                                   placeholder="Buscar por código o nombre de materia...">
+                        </div>
+                    </div>
+
+                    <form method="POST" action="" id="form-asignar-materias">
                         {{ form.hidden_tag() }}
                         
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Instrucciones:</strong> Selecciona las materias que este profesor impartirá. 
-                            Puedes seleccionar múltiples materias manteniendo presionada la tecla <kbd>Ctrl</kbd> (Windows/Linux) 
-                            o <kbd>Cmd</kbd> (Mac) mientras haces clic.
+                        <div id="materias-container">
+                            <!-- Las materias se agruparán por cuatrimestre aquí -->
                         </div>
 
-                        <div class="mb-4">
-                            {{ form.materias.label(class="form-label fw-bold") }}
-                            {{ form.materias(class="form-select", size=15, style="height: 400px;") }}
-                            {% if form.materias.errors %}
-                                <div class="text-danger mt-2">
-                                    {% for error in form.materias.errors %}
-                                        <small>{{ error }}</small><br>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <small class="form-text text-muted">
-                                Las materias se muestran filtradas por las carreras asignadas al profesor.
-                            </small>
-                        </div>
-
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
                             <a href="{{ url_for('gestionar_profesores') }}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancelar
                             </a>
-                            {{ form.submit(class="btn btn-primary") }}
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Guardar Asignaciones
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Materias Actuales -->
-            {% if profesor.materias %}
-            <div class="card mt-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Materias Actualmente Asignadas</h5>
+            <!-- Resumen de Materias Seleccionadas -->
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list-check me-2"></i>
+                        Resumen de Materias Seleccionadas 
+                        <span class="badge bg-light text-dark" id="total-seleccionadas">0</span>
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Nombre</th>
-                                    <th>Cuatrimestre</th>
-                                    <th>Carrera</th>
-                                    <th>Créditos</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for materia in profesor.materias|sort(attribute='cuatrimestre') %}
-                                <tr>
-                                    <td><code>{{ materia.codigo }}</code></td>
-                                    <td>{{ materia.nombre }}</td>
-                                    <td><span class="badge bg-info">Cuatri {{ materia.cuatrimestre }}</span></td>
-                                    <td>{{ materia.get_carrera_codigo() }}</td>
-                                    <td>{{ materia.creditos }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div id="resumen-seleccionadas" class="text-muted">
+                        No hay materias seleccionadas
                     </div>
                 </div>
             </div>
-            {% endif %}
 
         </div>
     </div>
 </div>
 
 <style>
-    .form-select[multiple] option {
-        padding: 8px;
-        border-bottom: 1px solid #eee;
+    .materia-checkbox {
+        cursor: pointer;
+        transition: all 0.2s ease;
     }
     
-    .form-select[multiple] option:hover {
-        background-color: #e3f2fd;
+    .materia-checkbox:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
     }
     
-    .form-select[multiple] option:checked {
-        background-color: #1976d2;
+    .materia-checkbox input[type="checkbox"]:checked ~ label {
+        font-weight: 600;
+        color: #0d6efd;
+    }
+    
+    .cuatrimestre-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .cuatrimestre-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
     }
     
-    kbd {
-        background-color: #333;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.85em;
+    .cuatrimestre-header:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .materia-item {
+        border-left: 3px solid #0d6efd;
+        padding-left: 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .materia-item:hover {
+        border-left-color: #0a58ca;
+        background-color: #f8f9fa;
+    }
+    
+    .materia-hidden {
+        display: none;
+    }
+    
+    .badge-cuatrimestre {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
     }
 </style>
+
+<script>
+// Datos de materias desde el servidor
+// eslint-disable-next-line
+const materiasDisponibles = {{ form.materias.choices | tojson }};
+// eslint-disable-next-line
+const materiasAsignadas = {{ form.materias.data | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderizarMaterias();
+    actualizarResumen();
+    
+    // Configurar buscador
+    document.getElementById('buscar-materia').addEventListener('input', filtrarMaterias);
+});
+
+function renderizarMaterias() {
+    const container = document.getElementById('materias-container');
+    const materiasPorCuatrimestre = {};
+    
+    // Agrupar materias por cuatrimestre
+    materiasDisponibles.forEach(([id, texto]) => {
+        const cuatrimestre = texto.match(/Cuatri (\d+)/)[1];
+        if (!materiasPorCuatrimestre[cuatrimestre]) {
+            materiasPorCuatrimestre[cuatrimestre] = [];
+        }
+        materiasPorCuatrimestre[cuatrimestre].push([id, texto]);
+    });
+    
+    // Renderizar por cuatrimestre
+    Object.keys(materiasPorCuatrimestre).sort((a, b) => parseInt(a) - parseInt(b)).forEach(cuatrimestre => {
+        const section = document.createElement('div');
+        section.className = 'cuatrimestre-section';
+        
+        const header = document.createElement('div');
+        header.className = 'cuatrimestre-header d-flex justify-content-between align-items-center';
+        header.innerHTML = `
+            <h6 class="mb-0">
+                <i class="fas fa-layer-group me-2"></i>
+                Cuatrimestre ${cuatrimestre}
+                <span class="badge bg-light text-dark ms-2">${materiasPorCuatrimestre[cuatrimestre].length} materias</span>
+            </h6>
+            <div>
+                <button type="button" class="btn btn-sm btn-light" onclick="toggleCuatrimestre(${cuatrimestre}, true)">
+                    <i class="fas fa-check-square me-1"></i>Todas
+                </button>
+                <button type="button" class="btn btn-sm btn-light" onclick="toggleCuatrimestre(${cuatrimestre}, false)">
+                    <i class="fas fa-square me-1"></i>Ninguna
+                </button>
+            </div>
+        `;
+        
+        const materiasDiv = document.createElement('div');
+        materiasDiv.className = 'materias-list';
+        
+        materiasPorCuatrimestre[cuatrimestre].forEach(([id, texto]) => {
+            const isChecked = materiasAsignadas.includes(id);
+            const materiaDiv = document.createElement('div');
+            materiaDiv.className = 'form-check materia-checkbox materia-item p-2';
+            materiaDiv.setAttribute('data-cuatrimestre', cuatrimestre);
+            materiaDiv.setAttribute('data-texto', texto.toLowerCase());
+            materiaDiv.innerHTML = `
+                <input class="form-check-input" type="checkbox" name="materias" value="${id}" 
+                       id="materia-${id}" ${isChecked ? 'checked' : ''} onchange="actualizarResumen()">
+                <label class="form-check-label w-100" for="materia-${id}">
+                    ${texto}
+                </label>
+            `;
+            materiasDiv.appendChild(materiaDiv);
+        });
+        
+        section.appendChild(header);
+        section.appendChild(materiasDiv);
+        container.appendChild(section);
+    });
+}
+
+function toggleCuatrimestre(cuatrimestre, seleccionar) {
+    const checkboxes = document.querySelectorAll(`[data-cuatrimestre="${cuatrimestre}"] input[type="checkbox"]`);
+    checkboxes.forEach(cb => {
+        if (!cb.closest('.materia-hidden')) {
+            cb.checked = seleccionar;
+        }
+    });
+    actualizarResumen();
+}
+
+function seleccionarTodas() {
+    document.querySelectorAll('input[name="materias"]').forEach(cb => {
+        if (!cb.closest('.materia-hidden')) {
+            cb.checked = true;
+        }
+    });
+    actualizarResumen();
+}
+
+function deseleccionarTodas() {
+    document.querySelectorAll('input[name="materias"]').forEach(cb => {
+        cb.checked = false;
+    });
+    actualizarResumen();
+}
+
+function filtrarMaterias() {
+    const termino = this.value.toLowerCase();
+    const materias = document.querySelectorAll('.materia-checkbox');
+    
+    materias.forEach(materia => {
+        const texto = materia.getAttribute('data-texto');
+        if (texto.includes(termino)) {
+            materia.classList.remove('materia-hidden');
+        } else {
+            materia.classList.add('materia-hidden');
+        }
+    });
+}
+
+function actualizarResumen() {
+    const seleccionadas = document.querySelectorAll('input[name="materias"]:checked');
+    const total = seleccionadas.length;
+    
+    document.getElementById('total-seleccionadas').textContent = total;
+    document.getElementById('materias-count').textContent = total;
+    
+    const resumenDiv = document.getElementById('resumen-seleccionadas');
+    
+    if (total === 0) {
+        resumenDiv.innerHTML = '<p class="text-muted mb-0">No hay materias seleccionadas</p>';
+        return;
+    }
+    
+    // Agrupar por cuatrimestre
+    const porCuatrimestre = {};
+    seleccionadas.forEach(cb => {
+        const cuatrimestre = cb.closest('[data-cuatrimestre]').getAttribute('data-cuatrimestre');
+        const label = cb.nextElementSibling.textContent;
+        if (!porCuatrimestre[cuatrimestre]) {
+            porCuatrimestre[cuatrimestre] = [];
+        }
+        porCuatrimestre[cuatrimestre].push(label.trim());
+    });
+    
+    let html = '';
+    Object.keys(porCuatrimestre).sort((a, b) => parseInt(a) - parseInt(b)).forEach(cuatri => {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-primary">
+                    <i class="fas fa-layer-group me-2"></i>
+                    Cuatrimestre ${cuatri} 
+                    <span class="badge bg-primary">${porCuatrimestre[cuatri].length}</span>
+                </h6>
+                <ul class="list-unstyled ms-3">
+                    ${porCuatrimestre[cuatri].map(m => `<li><i class="fas fa-check text-success me-2"></i>${m}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    });
+    
+    resumenDiv.innerHTML = html;
+}
+</script>
+
 {% endblock %}

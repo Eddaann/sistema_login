@@ -112,6 +112,15 @@ class User(UserMixin, db.Model):
         }
         return roles.get(self.rol, self.rol)
     
+    def get_tipo_profesor_display(self):
+        """Obtener tipo de profesor para mostrar"""
+        if self.rol == 'profesor_completo':
+            return 'Tiempo Completo'
+        elif self.rol == 'profesor_asignatura':
+            return 'Por Asignatura'
+        else:
+            return self.get_rol_display()
+    
     def get_imagen_perfil_url(self):
         """Obtener URL de la imagen de perfil o ícono por defecto"""
         if self.imagen_perfil and os.path.exists(os.path.join('static', 'uploads', 'perfiles', self.imagen_perfil)):

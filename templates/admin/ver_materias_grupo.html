@@ -23,67 +23,87 @@
                 <div class="card-body">
                     <!-- Información del Grupo -->
                     {% set resumen = grupo.get_resumen_completo() %}
-                    <div class="row mb-4">
-                        <div class="col-md-2">
-                            <div class="info-box bg-info" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-users-class"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Código Grupo</span>
-                                    <span class="info-box-number">{{ grupo.codigo }}</span>
+                    <div class="row mb-4 g-3">
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid #17a2b8;">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-users-class fa-2x text-info"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Código Grupo</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ grupo.codigo }}</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="info-box bg-success" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-graduation-cap"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Carrera</span>
-                                    <span class="info-box-number" style="font-size: 14px;">{{ grupo.carrera.codigo }}</span>
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid #28a745;">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-graduation-cap fa-2x text-success"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Carrera</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ grupo.carrera.codigo }}</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="info-box bg-warning" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-{{ 'sun' if grupo.turno == 'M' else 'moon' }}"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Turno</span>
-                                    <span class="info-box-number" style="font-size: 16px;">{{ grupo.get_turno_display() }}</span>
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid #ffc107;">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-{{ 'sun' if grupo.turno == 'M' else 'moon' }} fa-2x text-warning"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Turno</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ grupo.get_turno_display() }}</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="info-box bg-primary" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-book"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Materias</span>
-                                    <span class="info-box-number">{{ resumen.materias_count }}</span>
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid #007bff;">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-book fa-2x text-primary"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Materias</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ resumen.materias_count }}</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="info-box bg-secondary" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-chalkboard-teacher"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Profesores</span>
-                                    <span class="info-box-number">{{ resumen.profesores_count }}</span>
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid #6c757d;">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-chalkboard-teacher fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Profesores</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ resumen.profesores_count }}</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="info-box bg-{{ resumen.estado.clase }}" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-chart-pie"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Completitud</span>
-                                    <span class="info-box-number">{{ resumen.completitud }}%</span>
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="card text-center shadow-sm" style="border-radius: 15px; border-left: 5px solid {% if resumen.completitud == 100 %}#28a745{% elif resumen.completitud >= 50 %}#ffc107{% else %}#dc3545{% endif %};">
+                                <div class="card-body py-3">
+                                    <div class="mb-2">
+                                        <i class="fas fa-chart-pie fa-2x text-{{ resumen.estado.clase }}"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-2 text-muted small">Completitud</h6>
+                                    <h4 class="card-title mb-0 text-dark fw-bold">{{ resumen.completitud }}%</h4>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="info-box bg-primary" style="border-radius: 15px; text-align: center;">
-                                <span class="info-box-icon"><i class="fas fa-book"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">Total Materias</span>
-                                    <span class="info-box-number">{{ grupo.get_materias_count() }}</span>
+                    </div>
+
+                    <!-- Segunda fila de información adicional -->
+                    <div class="row mb-4 g-3">
+                        <div class="col-lg-12">
+                            <div class="card shadow-sm" style="border-radius: 15px; border-top: 4px solid #007bff;">
+                                <div class="card-body py-3">
+                                    <div class="row text-center">
+                                        <div class="col-md-12">
+                                            <i class="fas fa-book text-primary fa-2x mb-2"></i>
+                                            <h6 class="text-muted small mb-1">Total Materias</h6>
+                                            <h3 class="text-dark fw-bold mb-0">{{ grupo.get_materias_count() }}</h3>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -122,29 +142,29 @@
                                     {% for info in materias_info %}
                                     {% set materia = info.materia %}
                                     <tr class="{% if not info.tiene_profesor %}table-warning{% endif %}">
-                                        <td><strong>{{ materia.codigo }}</strong></td>
-                                        <td>{{ materia.nombre }}</td>
+                                        <td><strong class="text-dark">{{ materia.codigo }}</strong></td>
+                                        <td><strong class="text-dark">{{ materia.nombre }}</strong></td>
                                         <td class="text-center">
-                                            <span class="badge badge-primary">{{ materia.creditos }}</span>
+                                            <span class="badge bg-primary text-white">{{ materia.creditos }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <strong>{{ materia.get_horas_totales() }}h</strong>
+                                            <strong class="text-dark">{{ materia.get_horas_totales() }}h</strong>
                                         </td>
                                         <td>
                                             {% if info.profesores %}
                                                 {% for profesor in info.profesores %}
                                                 <div class="mb-1">
-                                                    <span class="badge badge-success">
+                                                    <span class="badge bg-success text-white">
                                                         <i class="fas fa-user"></i>
                                                         {{ profesor.get_nombre_completo() }}
                                                     </span>
-                                                    <small class="text-muted">
+                                                    <small class="text-dark">
                                                         ({{ profesor.tipo_profesor|replace('_', ' ')|title }})
                                                     </small>
                                                 </div>
                                                 {% endfor %}
                                             {% else %}
-                                                <span class="text-danger">
+                                                <span class="text-danger fw-bold">
                                                     <i class="fas fa-times-circle"></i>
                                                     Sin profesor asignado
                                                 </span>
@@ -152,12 +172,12 @@
                                         </td>
                                         <td class="text-center">
                                             {% if info.tiene_profesor %}
-                                                <span class="badge badge-success">
+                                                <span class="badge bg-success text-white">
                                                     <i class="fas fa-check"></i>
                                                     Completo
                                                 </span>
                                             {% else %}
-                                                <span class="badge badge-warning">
+                                                <span class="badge bg-warning text-dark">
                                                     <i class="fas fa-exclamation-triangle"></i>
                                                     Pendiente
                                                 </span>
@@ -168,15 +188,15 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="table-info">
-                                        <th colspan="2"><strong>TOTALES</strong></th>
+                                        <th colspan="2"><strong class="text-dark">TOTALES</strong></th>
                                         <th class="text-center">
-                                            <strong>{{ grupo.materias|sum(attribute='creditos') }}</strong>
+                                            <strong class="text-dark">{{ grupo.materias|sum(attribute='creditos') }}</strong>
                                         </th>
                                         <th class="text-center">
-                                            <strong>{{ grupo.materias|sum(attribute='horas_teoricas') + grupo.materias|sum(attribute='horas_practicas') }}h</strong>
+                                            <strong class="text-dark">{{ grupo.materias|sum(attribute='horas_teoricas') + grupo.materias|sum(attribute='horas_practicas') }}h</strong>
                                         </th>
                                         <th>
-                                            <strong>{{ resumen.profesores_count }} profesores únicos</strong>
+                                            <strong class="text-dark">{{ resumen.profesores_count }} profesores únicos</strong>
                                         </th>
                                         <th class="text-center">
                                             <strong class="text-{{ resumen.estado.clase }}">

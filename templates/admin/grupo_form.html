@@ -58,7 +58,18 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     {{ form.carrera.label(class="form-label") }}
-                                    {{ form.carrera(class="form-control" + (" is-invalid" if form.carrera.errors else "")) }}
+                                    {% if es_jefe %}
+                                        <!-- Jefe de carrera: campo bloqueado -->
+                                        {{ form.carrera(class="form-control", disabled=true) }}
+                                        <!-- Campo oculto para enviar el valor -->
+                                        <input type="hidden" name="carrera" value="{{ form.carrera.data }}">
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-lock"></i> Solo puedes crear grupos de tu carrera
+                                        </small>
+                                    {% else %}
+                                        <!-- Admin: campo editable -->
+                                        {{ form.carrera(class="form-control" + (" is-invalid" if form.carrera.errors else "")) }}
+                                    {% endif %}
                                     {% if form.carrera.errors %}
                                         <div class="invalid-feedback">
                                             {% for error in form.carrera.errors %}

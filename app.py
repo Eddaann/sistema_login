@@ -585,6 +585,125 @@ def ver_materias_profesor_jefe(id):
                          horarios_por_materia=horarios_por_materia)
 
 # ==========================================
+# ASIGNACIÓN MASIVA DE MATERIAS (JEFE DE CARRERA)
+# ==========================================
+@app.route('/jefe-carrera/asignacion-masiva-materias', methods=['GET', 'POST'])
+@login_required
+def asignacion_masiva_materias_jefe():
+    """Asignación masiva de materias a múltiples profesores (jefe de carrera)"""
+    if not current_user.is_jefe_carrera():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if not current_user.carrera_id:
+        flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            asignaciones_marcadas = set(request.form.getlist('asignaciones[]'))
+            
+            # Obtener filtros para reconstruir el estado original
+            cuatrimestre = request.args.get('cuatrimestre', type=int)
+            
+            # Obtener todos los profesores y materias según filtros
+            profesores = User.query.filter(
+                User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+                User.activo == True,
+                User.carreras.any(id=current_user.carrera_id)
+            ).all()
+            
+            materias_query = Materia.query.filter_by(
+                carrera_id=current_user.carrera_id,
+                activa=True
+            )
+            if cuatrimestre:
+                materias_query = materias_query.filter_by(cuatrimestre=cuatrimestre)
+            materias = materias_query.all()
+            
+            # Procesar cambios
+            contador_asignaciones = 0
+            contador_desasignaciones = 0
+            errores = []
+            
+            # Iterar sobre todos los profesores y materias visibles
+            for profesor in profesores:
+                for materia in materias:
+                    clave = f"{profesor.id}-{materia.id}"
+                    esta_marcada = clave in asignaciones_marcadas
+                    esta_asignada = materia in profesor.materias
+                    
+                    # Si está marcada y no está asignada -> ASIGNAR
+                    if esta_marcada and not esta_asignada:
+                        profesor.materias.append(materia)
+                        contador_asignaciones += 1
+                    
+                    # Si NO está marcada y SÍ está asignada -> DESASIGNAR
+                    elif not esta_marcada and esta_asignada:
+                        profesor.materias.remove(materia)
+                        contador_desasignaciones += 1
+            
+            # Guardar cambios
+            db.session.commit()
+            
+            # Mensaje de éxito
+            mensajes = []
+            if contador_asignaciones > 0:
+                mensajes.append(f'{contador_asignaciones} nueva(s) asignación(es)')
+            if contador_desasignaciones > 0:
+                mensajes.append(f'{contador_desasignaciones} desasignación(es)')
+            
+            if mensajes:
+                flash(f'Cambios realizados exitosamente: {", ".join(mensajes)}.', 'success')
+            else:
+                flash('No se realizaron cambios.', 'info')
+            
+            if errores:
+                flash(f'Errores: {", ".join(errores[:5])}', 'warning')
+            
+            return redirect(url_for('asignacion_masiva_materias_jefe'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al realizar las asignaciones: {str(e)}', 'error')
+            return redirect(url_for('asignacion_masiva_materias_jefe'))
+    
+    # GET - Mostrar formulario
+    # Obtener filtros
+    cuatrimestre = request.args.get('cuatrimestre', type=int)
+    
+    # Obtener profesores activos de la carrera del jefe
+    profesores = User.query.filter(
+        User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+        User.activo == True,
+        User.carreras.any(id=current_user.carrera_id)
+    ).order_by(User.apellido, User.nombre).all()
+    
+    # Obtener materias activas de la carrera del jefe
+    materias_query = Materia.query.filter_by(
+        carrera_id=current_user.carrera_id,
+        activa=True
+    )
+    
+    if cuatrimestre:
+        materias_query = materias_query.filter_by(cuatrimestre=cuatrimestre)
+    
+    materias = materias_query.order_by(Materia.cuatrimestre, Materia.nombre).all()
+    
+    # Crear matriz de asignaciones actuales
+    asignaciones_actuales = {}
+    for profesor in profesores:
+        asignaciones_actuales[profesor.id] = set(m.id for m in profesor.materias)
+    
+    return render_template('jefe/asignacion_masiva_materias.html',
+                         profesores=profesores,
+                         materias=materias,
+                         asignaciones_actuales=asignaciones_actuales,
+                         filtro_cuatrimestre=cuatrimestre,
+                         carrera=current_user.carrera)
+
+# ==========================================
 # GESTIÓN DE MATERIAS PARA JEFES DE CARRERA
 # ==========================================
 
@@ -785,6 +904,45 @@ def profesor_horarios():
                          materias_unicas=materias_unicas,
                          dias_semana=dias_semana)
 
+@app.route('/profesor/mis-materias')
+@login_required
+def profesor_mis_materias():
+    """Ver materias asignadas al profesor (solo lectura)"""
+    if not current_user.is_profesor():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Obtener materias ordenadas por cuatrimestre
+    materias = sorted(current_user.materias, key=lambda m: (m.cuatrimestre, m.nombre))
+    
+    # Obtener horarios del profesor agrupados por materia
+    horarios_por_materia = {}
+    for materia in materias:
+        horarios = HorarioAcademico.query.filter_by(
+            profesor_id=current_user.id,
+            materia_id=materia.id,
+            activo=True
+        ).all()
+        horarios_por_materia[materia.id] = horarios
+    
+    # Estadísticas
+    total_materias = len(materias)
+    total_horas_clase = sum(len(horarios_por_materia.get(m.id, [])) for m in materias)
+    
+    # Agrupar materias por cuatrimestre
+    materias_por_cuatrimestre = {}
+    for materia in materias:
+        if materia.cuatrimestre not in materias_por_cuatrimestre:
+            materias_por_cuatrimestre[materia.cuatrimestre] = []
+        materias_por_cuatrimestre[materia.cuatrimestre].append(materia)
+    
+    return render_template('profesor/mis_materias.html',
+                         materias=materias,
+                         horarios_por_materia=horarios_por_materia,
+                         total_materias=total_materias,
+                         total_horas_clase=total_horas_clase,
+                         materias_por_cuatrimestre=materias_por_cuatrimestre)
+
 @app.route('/profesor/disponibilidad', methods=['GET', 'POST'])
 @login_required
 def profesor_disponibilidad():
@@ -860,31 +1018,63 @@ def profesor_disponibilidad():
 @app.route('/admin/grupos')
 @login_required
 def gestionar_grupos():
-    """Gestión de grupos - solo para administradores"""
-    if not current_user.is_admin():
+    """Gestión de grupos - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
-    grupos = Grupo.query.join(Carrera).order_by(
-        Carrera.nombre, Grupo.cuatrimestre, Grupo.numero_grupo
-    ).all()
+    # Si es jefe de carrera, solo mostrar grupos de su carrera
+    if current_user.is_jefe_carrera():
+        if not current_user.carrera_id:
+            flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+            return redirect(url_for('dashboard'))
+        
+        grupos = Grupo.query.filter_by(carrera_id=current_user.carrera_id).join(Carrera).order_by(
+            Grupo.cuatrimestre, Grupo.numero_grupo
+        ).all()
+        
+        # Obtener carreras únicas (solo la del jefe)
+        carreras = Carrera.query.filter_by(id=current_user.carrera_id).all()
+    else:
+        # Admin ve todos los grupos
+        grupos = Grupo.query.join(Carrera).order_by(
+            Carrera.nombre, Grupo.cuatrimestre, Grupo.numero_grupo
+        ).all()
+        
+        # Obtener todas las carreras activas
+        carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
     
-    return render_template('admin/grupos.html', grupos=grupos)
+    return render_template('admin/grupos.html', grupos=grupos, carreras=carreras)
 
 @app.route('/admin/grupo/nuevo', methods=['GET', 'POST'])
 @login_required
 def crear_grupo():
-    """Crear nuevo grupo - solo para administradores"""
-    if not current_user.is_admin():
+    """Crear nuevo grupo - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
     form = GrupoForm()
+    
+    # Si es jefe de carrera, restringir a su carrera
+    if current_user.is_jefe_carrera():
+        if not current_user.carrera_id:
+            flash('No tienes una carrera asignada. Contacta al administrador.', 'warning')
+            return redirect(url_for('dashboard'))
+        
+        # Pre-seleccionar la carrera del jefe y deshabilitar el selector
+        form.carrera.data = current_user.carrera_id
+    
     if form.validate_on_submit():
         # Verificar que se haya seleccionado una carrera válida
         if form.carrera.data == 0:
             flash('Debe seleccionar una carrera.', 'error')
             return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo')
+        
+        # Verificar que jefe de carrera solo cree grupos de su carrera
+        if current_user.is_jefe_carrera() and form.carrera.data != current_user.carrera_id:
+            flash('Solo puedes crear grupos de tu carrera.', 'error')
+            return redirect(url_for('gestionar_grupos'))
         
         # Verificar que se haya seleccionado un cuatrimestre válido (0-10 son válidos, -1 no)
         if form.cuatrimestre.data == -1:
@@ -914,17 +1104,25 @@ def crear_grupo():
             flash(f'Grupo {grupo.codigo} creado exitosamente.', 'success')
             return redirect(url_for('gestionar_grupos'))
     
-    return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo')
+    return render_template('admin/grupo_form.html', form=form, titulo='Crear Grupo', 
+                         es_jefe=current_user.is_jefe_carrera())
 
 @app.route('/admin/grupo/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_grupo(id):
-    """Editar grupo existente - solo para administradores"""
-    if not current_user.is_admin():
+    """Editar grupo existente - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
     grupo = Grupo.query.get_or_404(id)
+    
+    # Si es jefe de carrera, verificar que el grupo pertenezca a su carrera
+    if current_user.is_jefe_carrera():
+        if grupo.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para editar este grupo.', 'error')
+            return redirect(url_for('gestionar_grupos'))
+    
     form = GrupoForm()
     
     if form.validate_on_submit():
@@ -932,6 +1130,11 @@ def editar_grupo(id):
         if form.carrera.data == 0:
             flash('Debe seleccionar una carrera.', 'error')
             return render_template('admin/grupo_form.html', form=form, grupo=grupo, titulo=f'Editar Grupo {grupo.codigo}')
+        
+        # Verificar que jefe de carrera solo edite grupos de su carrera
+        if current_user.is_jefe_carrera() and form.carrera.data != current_user.carrera_id:
+            flash('Solo puedes editar grupos de tu carrera.', 'error')
+            return redirect(url_for('gestionar_grupos'))
         
         # Verificar que se haya seleccionado un cuatrimestre válido (0-10 son válidos, -1 no)
         if form.cuatrimestre.data == -1:
@@ -967,17 +1170,25 @@ def editar_grupo(id):
         form.carrera.data = grupo.carrera_id
         form.cuatrimestre.data = grupo.cuatrimestre
     
-    return render_template('admin/grupo_form.html', form=form, grupo=grupo, titulo=f'Editar Grupo {grupo.codigo}')
+    return render_template('admin/grupo_form.html', form=form, grupo=grupo, 
+                         titulo=f'Editar Grupo {grupo.codigo}',
+                         es_jefe=current_user.is_jefe_carrera())
 
 @app.route('/admin/grupo/<int:id>/eliminar', methods=['POST'])
 @login_required
 def eliminar_grupo(id):
-    """Eliminar grupo - solo para administradores"""
-    if not current_user.is_admin():
+    """Eliminar grupo - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
     grupo = Grupo.query.get_or_404(id)
+    
+    # Si es jefe de carrera, verificar que el grupo pertenezca a su carrera
+    if current_user.is_jefe_carrera():
+        if grupo.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para eliminar este grupo.', 'error')
+            return redirect(url_for('gestionar_grupos'))
     
     # Verificar si tiene horarios asignados (cuando se implemente la relación)
     # Por ahora solo eliminar
@@ -991,12 +1202,19 @@ def eliminar_grupo(id):
 @app.route('/admin/grupo/<int:id>/materias', methods=['GET', 'POST'])
 @login_required
 def gestionar_materias_grupo(id):
-    """Asignar materias a un grupo - solo para administradores"""
-    if not current_user.is_admin():
+    """Asignar materias a un grupo - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
     grupo = Grupo.query.get_or_404(id)
+    
+    # Si es jefe de carrera, verificar que el grupo pertenezca a su carrera
+    if current_user.is_jefe_carrera():
+        if grupo.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para gestionar las materias de este grupo.', 'error')
+            return redirect(url_for('gestionar_grupos'))
+    
     form = AsignarMateriasGrupoForm(grupo=grupo)
     
     if form.validate_on_submit():
@@ -1018,12 +1236,18 @@ def gestionar_materias_grupo(id):
 @app.route('/admin/grupo/<int:id>/materias/ver')
 @login_required
 def ver_materias_grupo(id):
-    """Ver materias asignadas a un grupo - solo para administradores"""
-    if not current_user.is_admin():
+    """Ver materias asignadas a un grupo - para administradores y jefes de carrera"""
+    if not current_user.is_admin() and not current_user.is_jefe_carrera():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
     grupo = Grupo.query.get_or_404(id)
+    
+    # Si es jefe de carrera, verificar que el grupo pertenezca a su carrera
+    if current_user.is_jefe_carrera():
+        if grupo.carrera_id != current_user.carrera_id:
+            flash('No tienes permisos para ver las materias de este grupo.', 'error')
+            return redirect(url_for('gestionar_grupos'))
     
     return render_template('admin/ver_materias_grupo.html', grupo=grupo)
 
@@ -1669,38 +1893,23 @@ def gestionar_profesores():
         flash('No tienes permisos para acceder a esta página.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Obtener filtros
-    carrera_id = request.args.get('carrera_id', type=int)
-    tipo_profesor = request.args.get('tipo_profesor')
-    busqueda = request.args.get('busqueda', '').strip()
-    
-    # Query base para profesores
-    query = User.query.filter(
+    # Obtener todos los profesores activos (sin filtros para estadísticas)
+    todos_profesores = User.query.filter(
         User.rol.in_(['profesor_completo', 'profesor_asignatura']),
         User.activo == True
-    )
+    ).all()
     
-    # Aplicar filtros
-    if carrera_id:
-        query = query.filter(User.carrera_id == carrera_id)
-    
-    if tipo_profesor:
-        query = query.filter(User.rol == tipo_profesor)
-    
-    if busqueda:
-        query = query.filter(
-            db.or_(
-                User.nombre.ilike(f'%{busqueda}%'),
-                User.apellido.ilike(f'%{busqueda}%'),
-                User.username.ilike(f'%{busqueda}%'),
-                User.email.ilike(f'%{busqueda}%')
-            )
-        )
-    
-    profesores = query.order_by(User.apellido, User.nombre).all()
+    # Calcular estadísticas
+    total_profesores = len(todos_profesores)
+    profesores_completos = len([p for p in todos_profesores if p.rol == 'profesor_completo'])
+    profesores_asignatura = len([p for p in todos_profesores if p.rol == 'profesor_asignatura'])
     
     # Obtener carreras para el filtro
     carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
+    total_carreras = len(carreras)
+    
+    # Para la tabla mostramos todos los profesores (el filtrado se hace en JavaScript)
+    profesores = todos_profesores
     
     # Crear formularios
     filtrar_form = FiltrarProfesoresForm()
@@ -1713,11 +1922,10 @@ def gestionar_profesores():
                          carreras=carreras,
                          filtrar_form=filtrar_form,
                          exportar_form=exportar_form,
-                         filtros_activos={
-                             'carrera': carrera_id,
-                             'tipo_profesor': tipo_profesor,
-                             'busqueda': busqueda
-                         })
+                         total_profesores=total_profesores,
+                         profesores_completos=profesores_completos,
+                         profesores_asignatura=profesores_asignatura,
+                         total_carreras=total_carreras)
 
 @app.route('/admin/profesores/importar', methods=['GET', 'POST'])
 @login_required
@@ -1964,6 +2172,124 @@ def ver_materias_profesor(id):
                          profesor=profesor,
                          materias=materias,
                          horarios_por_materia=horarios_por_materia)
+
+# ==========================================
+# ASIGNACIÓN MASIVA DE MATERIAS
+# ==========================================
+@app.route('/admin/asignacion-masiva-materias', methods=['GET', 'POST'])
+@login_required
+def asignacion_masiva_materias():
+    """Asignación masiva de materias a múltiples profesores"""
+    if not current_user.is_admin():
+        flash('No tienes permisos para acceder a esta página.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            asignaciones_marcadas = set(request.form.getlist('asignaciones[]'))
+            
+            # Obtener filtros para reconstruir el estado original
+            carrera_id = request.args.get('carrera', type=int)
+            cuatrimestre = request.args.get('cuatrimestre', type=int)
+            
+            # Obtener todos los profesores y materias según filtros
+            profesores = User.query.filter(
+                User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+                User.activo == True
+            ).all()
+            
+            materias_query = Materia.query.filter_by(activa=True)
+            if carrera_id:
+                materias_query = materias_query.filter_by(carrera_id=carrera_id)
+            if cuatrimestre:
+                materias_query = materias_query.filter_by(cuatrimestre=cuatrimestre)
+            materias = materias_query.all()
+            
+            # Procesar cambios
+            contador_asignaciones = 0
+            contador_desasignaciones = 0
+            errores = []
+            
+            # Iterar sobre todos los profesores y materias visibles
+            for profesor in profesores:
+                for materia in materias:
+                    clave = f"{profesor.id}-{materia.id}"
+                    esta_marcada = clave in asignaciones_marcadas
+                    esta_asignada = materia in profesor.materias
+                    
+                    # Si está marcada y no está asignada -> ASIGNAR
+                    if esta_marcada and not esta_asignada:
+                        profesor.materias.append(materia)
+                        contador_asignaciones += 1
+                    
+                    # Si NO está marcada y SÍ está asignada -> DESASIGNAR
+                    elif not esta_marcada and esta_asignada:
+                        profesor.materias.remove(materia)
+                        contador_desasignaciones += 1
+            
+            # Guardar cambios
+            db.session.commit()
+            
+            # Mensaje de éxito
+            mensajes = []
+            if contador_asignaciones > 0:
+                mensajes.append(f'{contador_asignaciones} nueva(s) asignación(es)')
+            if contador_desasignaciones > 0:
+                mensajes.append(f'{contador_desasignaciones} desasignación(es)')
+            
+            if mensajes:
+                flash(f'Cambios realizados exitosamente: {", ".join(mensajes)}.', 'success')
+            else:
+                flash('No se realizaron cambios.', 'info')
+            
+            if errores:
+                flash(f'Errores: {", ".join(errores)}', 'warning')
+            
+            return redirect(url_for('asignacion_masiva_materias'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al realizar las asignaciones: {str(e)}', 'error')
+            return redirect(url_for('asignacion_masiva_materias'))
+    
+    # GET - Mostrar formulario
+    # Obtener filtros
+    carrera_id = request.args.get('carrera', type=int)
+    cuatrimestre = request.args.get('cuatrimestre', type=int)
+    
+    # Obtener todos los profesores activos
+    profesores = User.query.filter(
+        User.rol.in_(['profesor_completo', 'profesor_asignatura']),
+        User.activo == True
+    ).order_by(User.apellido, User.nombre).all()
+    
+    # Obtener materias activas
+    materias_query = Materia.query.filter_by(activa=True)
+    
+    if carrera_id:
+        materias_query = materias_query.filter_by(carrera_id=carrera_id)
+    
+    if cuatrimestre:
+        materias_query = materias_query.filter_by(cuatrimestre=cuatrimestre)
+    
+    materias = materias_query.order_by(Materia.cuatrimestre, Materia.nombre).all()
+    
+    # Obtener carreras para filtros
+    carreras = Carrera.query.filter_by(activa=True).order_by(Carrera.nombre).all()
+    
+    # Crear matriz de asignaciones actuales
+    asignaciones_actuales = {}
+    for profesor in profesores:
+        asignaciones_actuales[profesor.id] = set(m.id for m in profesor.materias)
+    
+    return render_template('admin/asignacion_masiva_materias.html',
+                         profesores=profesores,
+                         materias=materias,
+                         carreras=carreras,
+                         asignaciones_actuales=asignaciones_actuales,
+                         filtro_carrera=carrera_id,
+                         filtro_cuatrimestre=cuatrimestre)
 
 # Manejo de errores
 @app.errorhandler(404)
